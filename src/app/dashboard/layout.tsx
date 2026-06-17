@@ -1,78 +1,44 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Sidebar from '@/components/Sidebar'
+import Sidebar from '@/components/layout/Sidebar'
+import { isLoggedIn } from '@/lib/supabase'
 import { api } from '@/lib/api'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const router            = useRouter()
-  const [bizName, setBizName] = useState('My Business')
-  const [ready,   setReady]   = useState(false)
-  const [authed,  setAuthed]  = useState(false)
+  const router = useRouter()
+  const [ready, setReady] = useState(false)
+  const [biz, setBiz]     = useState<any>({})
 
   useEffect(() => {
     async function init() {
-      // Check localStorage for session
-      const raw = localStorage.getItem('bizbot-session')
-
-      if (!raw) {
-        // No session — redirect to login
-        router.replace('/login')
-        return
+      if (!isLoggedIn()) { router.replace('/login'); return }
+      const { data } = await api.getBusiness()
+      if (data?.id) {
+        localStorage.setItem('bizId', data.id)
+        const active = data.plan_expires_at ? new Date(data.plan_expires_at) > new Date() : false
+        setBiz({ ...data, planActive: active })
       }
-
-      try {
-        const session = JSON.parse(raw)
-
-        // Check if session expired
-        const now = Math.floor(Date.now() / 1000)
-        if (session.expires_at && session.expires_at < now) {
-          localStorage.removeItem('bizbot-session')
-          router.replace('/login')
-          return
-        }
-
-        setAuthed(true)
-
-        // Load business info
-        const { data } = await api.getBusiness()
-        if (data?.id) {
-          localStorage.setItem('bizId', data.id)
-          setBizName(data.name || 'My Business')
-        }
-
-        setReady(true)
-      } catch (e) {
-        // Bad session data
-        localStorage.removeItem('bizbot-session')
-        router.replace('/login')
-      }
+      setReady(true)
     }
-
     init()
   }, [router])
 
-  // Show loading while checking auth
   if (!ready) return (
-    <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
-      <div className="flex flex-col items-center gap-3">
-        <div className="flex items-center gap-2 text-zinc-500 text-sm">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 pulse" />
-          {authed ? 'Loading dashboard...' : 'Checking session...'}
-        </div>
-        {!authed && (
-          <p className="text-xs text-zinc-700">
-            If this takes too long, <a href="/login" className="text-emerald-600 hover:text-emerald-400">go back to login</a>
-          </p>
-        )}
+    <div className="min-h-screen bg-[#08090A] flex items-center justify-center">
+      <div className="flex items-center gap-2.5 text-[#5A6370] text-sm">
+        <span className="w-2 h-2 rounded-full bg-[#00C57A] pulse-dot" />
+        Loading BizBot...
       </div>
     </div>
   )
 
   return (
-    <div className="min-h-screen bg-zinc-950">
-      <Sidebar bizName={bizName} />
-      <main className="ml-52 p-8 max-w-6xl">{children}</main>
+    <div className="min-h-screen bg-[#08090A]">
+      <Sidebar bizName={biz.name} bizType={biz.type} plan={biz.plan} planActive={biz.planActive} />
+      <main className="ml-60 min-h-screen">
+        <div className="max-w-6xl mx-auto px-8 py-8">{children}</div>
+      </main>
     </div>
   )
 }

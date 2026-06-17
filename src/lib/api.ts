@@ -1,6 +1,5 @@
-const BASE    = process.env.NEXT_PUBLIC_API_URL    || 'http://localhost:3000'
-const BIZ_ID  = () => process.env.NEXT_PUBLIC_BUSINESS_ID ||
-                      (typeof window !== 'undefined' ? localStorage.getItem('bizId') || '' : '')
+const BASE   = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
+const BIZ_ID = () => (typeof window !== 'undefined' ? localStorage.getItem('bizId') || process.env.NEXT_PUBLIC_BUSINESS_ID || '' : '')
 
 async function call<T>(path: string, opts: RequestInit = {}): Promise<{ data: T | null; error: string | null }> {
   try {
@@ -23,18 +22,38 @@ async function call<T>(path: string, opts: RequestInit = {}): Promise<{ data: T 
 }
 
 export const api = {
-  getStats:                ()         => call<any>('/api/dashboard/stats'),
-  getTodayAppointments:    ()         => call<any[]>('/api/dashboard/appointments/today'),
-  getAllAppointments:       ()         => call<any[]>('/api/dashboard/appointments'),
-  updateAppointmentStatus: (id: string, status: string) =>
-                                         call(`/api/dashboard/appointments/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
-  getConversations:        ()         => call<any[]>('/api/dashboard/conversations'),
-  getMessages:             (cid: string) => call<any[]>(`/api/dashboard/conversations/${cid}/messages`),
-  getPendingPayments:      ()         => call<any[]>('/api/dashboard/payments/pending'),
-  sendPaymentReminder:     (id: string) => call(`/api/payments/${id}/remind`, { method: 'POST' }),
-  markPaymentPaid:         (id: string) => call(`/api/payments/${id}/paid`,   { method: 'PATCH' }),
-  getCustomers:            ()         => call<any[]>('/api/dashboard/customers'),
-  sendReengagement:        (id: string) => call(`/api/dashboard/customers/${id}/reengage`, { method: 'POST' }),
-  getBusiness:             ()         => call<any>('/api/business'),
-  updateBusiness:          (d: any)   => call('/api/business', { method: 'PATCH', body: JSON.stringify(d) }),
+  // Stats
+  getStats:                ()                       => call<any>('/api/dashboard/stats'),
+
+  // Appointments
+  getTodayAppointments:    ()                       => call<any[]>('/api/dashboard/appointments/today'),
+  getAllAppointments:      ()                       => call<any[]>('/api/dashboard/appointments'),
+  createAppointment:       (d: any)                 => call('/api/dashboard/appointments/create', { method: 'POST', body: JSON.stringify(d) }),
+  updateAppointment:       (id: string, d: any)     => call(`/api/dashboard/appointments/${id}`, { method: 'PATCH', body: JSON.stringify(d) }),
+  updateAppointmentStatus: (id: string, status: string) => call(`/api/dashboard/appointments/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+  sendAppointmentReminder: (id: string)             => call(`/api/dashboard/appointments/${id}/remind`, { method: 'POST' }),
+
+  // Conversations
+  getConversations:        ()                       => call<any[]>('/api/dashboard/conversations'),
+  getMessages:             (cid: string)            => call<any[]>(`/api/dashboard/conversations/${cid}/messages`),
+  sendManualMessage:       (cid: string, text: string) => call(`/api/dashboard/conversations/${cid}/send`, { method: 'POST', body: JSON.stringify({ text }) }),
+  toggleAI:                (cid: string, enabled: boolean) => call(`/api/dashboard/conversations/${cid}/ai`, { method: 'PATCH', body: JSON.stringify({ ai_enabled: enabled }) }),
+
+  // Payments
+  getPendingPayments:      ()                       => call<any[]>('/api/dashboard/payments/pending'),
+  getPaidPayments:         ()                       => call<any[]>('/api/dashboard/payments/paid'),
+  createPayment:           (d: any)                 => call('/api/dashboard/payments/create', { method: 'POST', body: JSON.stringify(d) }),
+  sendPaymentReminder:     (id: string)             => call(`/api/payments/${id}/remind`, { method: 'POST' }),
+  markPaymentPaid:         (id: string)             => call(`/api/payments/${id}/paid`, { method: 'PATCH' }),
+
+  // Customers
+  getCustomers:            ()                       => call<any[]>('/api/dashboard/customers'),
+  getCustomerDetail:       (id: string)             => call<any>(`/api/dashboard/customers/${id}`),
+  createCustomer:          (d: any)                 => call('/api/dashboard/customers/create', { method: 'POST', body: JSON.stringify(d) }),
+  sendReengagement:        (id: string)             => call(`/api/dashboard/customers/${id}/reengage`, { method: 'POST' }),
+
+  // Business
+  getBusiness:             ()                       => call<any>('/api/business'),
+  updateBusiness:          (d: any)                 => call('/api/business', { method: 'PATCH', body: JSON.stringify(d) }),
+  createBusiness:          (d: any)                 => call('/api/business/create', { method: 'POST', body: JSON.stringify(d) }),
 }

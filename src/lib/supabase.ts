@@ -2,7 +2,14 @@ import { createClient } from '@supabase/supabase-js'
 
 export const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  {
+    auth: {
+      persistSession: true,
+      storageKey: 'bizbot-auth',
+      storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+    }
+  }
 )
 
 export async function signInWithPhone(phone: string) {
@@ -15,11 +22,28 @@ export async function verifyOtp(phone: string, token: string) {
   return supabase.auth.verifyOtp({ phone: formatted, token, type: 'sms' })
 }
 
-export async function getSession() {
-  const { data } = await supabase.auth.getSession()
-  return data.session
+export function isLoggedIn() {
+  if (typeof window === 'undefined') return false
+  const raw = localStorage.getItem('bizbot-session')
+  if (!raw) return false
+  try {
+    const s = JSON.parse(raw)
+    const now = Math.floor(Date.now() / 1000)
+    return !(s.expires_at && s.expires_at < now)
+  } catch { return false }
 }
 
-export async function signOut() {
-  await supabase.auth.signOut()
+export function saveSession(session: any) {
+  localStorage.setItem('bizbot-session', JSON.stringify({
+    access_token:  session.access_token,
+    refresh_token: session.refresh_token,
+    user:          session.user,
+    expires_at:    session.expires_at,
+  }))
+}
+
+export function signOut() {
+  localStorage.removeItem('bizbot-session')
+  localStorage.removeItem('bizId')
+  supabase.auth.signOut()
 }

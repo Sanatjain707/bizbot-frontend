@@ -1,49 +1,35 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
-import { Calendar, MessageSquare, CreditCard, Users } from 'lucide-react'
+import { Card, StatCard, Avatar, Badge, Button, SkeletonCard, Skeleton, EmptyState } from '@/components/ui'
+import { Calendar, MessageSquare, CreditCard, Users, Plus, Zap, AlertTriangle, TrendingUp, Clock } from 'lucide-react'
 
-function Card({ label, value, sub, icon: Icon, color }: any) {
-  return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
-      <div className="flex items-start justify-between mb-3">
-        <span className="text-xs font-medium text-zinc-500 uppercase tracking-wide">{label}</span>
-        <div className={`p-1.5 rounded-lg ${color}`}><Icon size={14} /></div>
-      </div>
-      <div className="text-2xl font-semibold text-white mb-1">{value}</div>
-      {sub && <div className="text-xs text-zinc-500">{sub}</div>}
-    </div>
-  )
-}
-
-function Avatar({ name, phone }: any) {
-  const cols = ['bg-emerald-500/20 text-emerald-300','bg-blue-500/20 text-blue-300','bg-purple-500/20 text-purple-300','bg-amber-500/20 text-amber-300']
-  const c    = cols[(phone||'').charCodeAt((phone||'').length-1) % cols.length]
-  const ini  = name ? name.split(' ').map((w:string)=>w[0]).join('').toUpperCase().slice(0,2) : (phone||'??').slice(-2)
-  return <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0 ${c}`}>{ini}</div>
-}
-
-const STATUS_CLS: Record<string,string> = {
-  confirmed: 'bg-emerald-500/10 text-emerald-400',
-  done:      'bg-zinc-700/50 text-zinc-400',
-  cancelled: 'bg-red-500/10 text-red-400',
-  no_show:   'bg-amber-500/10 text-amber-400',
+const STATUS_CLS: any = {
+  confirmed: 'green', done: 'default', cancelled: 'red', no_show: 'amber',
 }
 
 export default function DashboardPage() {
-  const [stats,  setStats]  = useState<any>(null)
-  const [appts,  setAppts]  = useState<any[]>([])
-  const [convos, setConvos] = useState<any[]>([])
-  const [loading,setLoading]= useState(true)
+  const router = useRouter()
+  const [stats,   setStats]   = useState<any>(null)
+  const [appts,   setAppts]   = useState<any[]>([])
+  const [convos,  setConvos]  = useState<any[]>([])
+  const [customers, setCustomers] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const today = new Date().toLocaleDateString('en-IN',{ weekday:'long', day:'numeric', month:'long', year:'numeric' })
+  const today = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })
+  const hour = Number(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata', hour: '2-digit', hour12: false }))
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
 
   useEffect(() => {
     async function load() {
-      const [s,a,c] = await Promise.all([api.getStats(), api.getTodayAppointments(), api.getConversations()])
+      const [s, a, c, cust] = await Promise.all([
+        api.getStats(), api.getTodayAppointments(), api.getConversations(), api.getCustomers()
+      ])
       if (s.data) setStats(s.data)
       if (a.data) setAppts(a.data)
       if (c.data) setConvos(c.data)
+      if (cust.data) setCustomers(cust.data)
       setLoading(false)
     }
     load()
@@ -51,93 +37,130 @@ export default function DashboardPage() {
     return () => clearInterval(t)
   }, [])
 
-  if (loading) return (
-    <div className="flex items-center justify-center h-64">
-      <div className="flex items-center gap-2 text-zinc-500 text-sm">
-        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse" />Loading...
-      </div>
-    </div>
-  )
+  const atRisk = customers.filter(c => {
+    const days = Math.floor((Date.now() - new Date(c.last_seen).getTime()) / 86400000)
+    return days >= 21
+  }).length
 
   return (
-    <div className="animate-in max-w-5xl">
-      <div className="flex items-start justify-between mb-7">
+    <div className="animate-up">
+
+      {/* Header */}
+      <div className="flex items-start justify-between mb-8">
         <div>
-          <h1 className="text-xl font-semibold text-white mb-1">Good morning 👋</h1>
-          <p className="text-sm text-zinc-500">{today}</p>
+          <h1 className="text-2xl font-bold text-[#E8EAED] mb-1 font-[Syne]">{greeting} 👋</h1>
+          <p className="text-sm text-[#5A6370]">{today}</p>
         </div>
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse" />
-          <span className="text-xs text-emerald-400 font-medium">AI Active</span>
-        </div>
+        <Badge variant="green" size="md">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#00C57A] pulse-dot mr-1.5" /> AI Active
+        </Badge>
       </div>
 
-      <div className="grid grid-cols-4 gap-4 mb-7">
-        <Card label="Today's Appointments" value={stats?.todayAppointments??0} sub="Booked via WhatsApp" icon={Calendar} color="text-emerald-400 bg-emerald-400/10" />
-        <Card label="Pending Payments" value={`₹${(stats?.pendingPayments??0).toLocaleString('en-IN')}`} sub="Awaiting collection" icon={CreditCard} color="text-amber-400 bg-amber-400/10" />
-        <Card label="AI Replies Today" value={stats?.aiRepliesToday??0} sub="100% automated" icon={MessageSquare} color="text-blue-400 bg-blue-400/10" />
-        <Card label="New Enquiries" value={stats?.newCustomersToday??0} sub="Responded instantly" icon={Users} color="text-purple-400 bg-purple-400/10" />
+      {/* Stats */}
+      {loading ? (
+        <div className="grid grid-cols-4 gap-4 mb-6">
+          {[1,2,3,4].map(i => <SkeletonCard key={i} />)}
+        </div>
+      ) : (
+        <div className="grid grid-cols-4 gap-4 mb-6">
+          <StatCard label="Today's Bookings" value={stats?.todayAppointments ?? 0} sub="Via WhatsApp AI" icon={Calendar} color="green" />
+          <StatCard label="Pending Payments" value={`₹${(stats?.pendingPayments ?? 0).toLocaleString('en-IN')}`} sub="To collect" icon={CreditCard} color="amber" />
+          <StatCard label="AI Replies Today" value={stats?.aiRepliesToday ?? 0} sub="100% automated" icon={MessageSquare} color="blue" />
+          <StatCard label="New Enquiries" value={stats?.newCustomersToday ?? 0} sub="Responded instantly" icon={Users} color="purple" />
+        </div>
+      )}
+
+      {/* AI activity bar */}
+      <Card className="p-4 mb-6 flex items-center gap-4 bg-gradient-to-r from-[rgba(0,197,122,0.06)] to-transparent border-[rgba(0,197,122,0.15)]">
+        <div className="w-9 h-9 rounded-xl bg-[rgba(0,197,122,0.12)] flex items-center justify-center flex-shrink-0">
+          <Zap size={16} className="text-[#00C57A]" />
+        </div>
+        <div className="flex-1">
+          <p className="text-sm text-[#E8EAED]">
+            BizBot AI handled <strong className="text-[#00C57A]">{stats?.aiRepliesToday ?? 0} conversations</strong> today
+          </p>
+          <p className="text-xs text-[#5A6370]">Saving you approximately {Math.round((stats?.aiRepliesToday ?? 0) * 2)} minutes of manual replies</p>
+        </div>
+        <Button variant="secondary" size="sm" onClick={() => router.push('/dashboard/conversations')}>View chats →</Button>
+      </Card>
+
+      {/* Quick actions */}
+      <div className="grid grid-cols-3 gap-3 mb-6">
+        <Card hover className="p-4 flex items-center gap-3" onClick={() => router.push('/dashboard/appointments')}>
+          <div className="w-9 h-9 rounded-xl bg-[rgba(0,197,122,0.1)] flex items-center justify-center"><Plus size={16} className="text-[#00C57A]" /></div>
+          <div><p className="text-sm font-medium text-[#E8EAED]">Add Appointment</p><p className="text-xs text-[#5A6370]">Manual booking</p></div>
+        </Card>
+        <Card hover className="p-4 flex items-center gap-3" onClick={() => router.push('/dashboard/payments')}>
+          <div className="w-9 h-9 rounded-xl bg-[rgba(255,160,64,0.1)] flex items-center justify-center"><CreditCard size={16} className="text-[#FFA040]" /></div>
+          <div><p className="text-sm font-medium text-[#E8EAED]">Log Payment</p><p className="text-xs text-[#5A6370]">Track a due</p></div>
+        </Card>
+        <Card hover className="p-4 flex items-center gap-3" onClick={() => router.push('/dashboard/customers')}>
+          <div className="w-9 h-9 rounded-xl bg-[rgba(255,90,90,0.1)] flex items-center justify-center"><AlertTriangle size={16} className="text-[#FF5A5A]" /></div>
+          <div><p className="text-sm font-medium text-[#E8EAED]">{atRisk} At-Risk</p><p className="text-xs text-[#5A6370]">Re-engage them</p></div>
+        </Card>
       </div>
 
+      {/* Two columns */}
       <div className="grid grid-cols-5 gap-5">
-        <div className="col-span-3 bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+
+        {/* Today's appointments */}
+        <Card className="col-span-3 p-5">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-white">Today's Appointments</h2>
-            <a href="/dashboard/appointments" className="text-xs text-emerald-400 hover:text-emerald-300">View all →</a>
+            <h2 className="text-sm font-semibold text-[#E8EAED]">Today's Appointments</h2>
+            <a href="/dashboard/appointments" className="text-xs text-[#00C57A] hover:underline">View all →</a>
           </div>
-          {appts.length === 0 ? (
-            <div className="text-center py-10">
-              <Calendar size={28} className="text-zinc-700 mx-auto mb-2" />
-              <p className="text-sm text-zinc-600">No appointments today</p>
-            </div>
+          {loading ? (
+            <div className="space-y-2">{[1,2,3].map(i => <Skeleton key={i} className="h-14 w-full" />)}</div>
+          ) : appts.length === 0 ? (
+            <EmptyState icon={Calendar} title="No appointments today" desc="BizBot will book them automatically as enquiries come in" />
           ) : (
             <div className="space-y-2">
-              {appts.slice(0,6).map((a:any) => (
-                <div key={a.id} className="flex items-center gap-3 p-3 bg-zinc-800/50 rounded-lg hover:bg-zinc-800 transition-colors">
-                  <Avatar name={a.customers?.name} phone={a.customers?.phone} />
+              {appts.slice(0, 6).map((a: any) => (
+                <div key={a.id} className="flex items-center gap-3 p-3 bg-[#141618] rounded-xl hover:bg-[#1A1D20] transition-all">
+                  <Avatar name={a.customers?.name} phone={a.customers?.phone} size="sm" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-white truncate">{a.customers?.name||a.customers?.phone}</p>
-                    <p className="text-xs text-zinc-500 truncate">{a.service}</p>
+                    <p className="text-sm font-medium text-[#E8EAED] truncate">{a.customers?.name || a.customers?.phone}</p>
+                    <p className="text-xs text-[#5A6370] truncate">{a.service}</p>
                   </div>
-                  <div className="text-right flex-shrink-0">
-                    <p className="text-xs text-zinc-400 mb-1">{new Date(a.appointment_time).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}</p>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_CLS[a.status]||STATUS_CLS.done}`}>{a.status}</span>
+                  <div className="text-right">
+                    <p className="text-xs text-[#9AA0AB] mb-1">{new Date(a.appointment_time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</p>
+                    <Badge variant={STATUS_CLS[a.status]} size="xs">{a.status.replace('_', ' ')}</Badge>
                   </div>
                 </div>
               ))}
             </div>
           )}
-        </div>
+        </Card>
 
-        <div className="col-span-2 bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+        {/* Live conversations */}
+        <Card className="col-span-2 p-5">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-white">Live Conversations</h2>
-            <a href="/dashboard/conversations" className="text-xs text-emerald-400 hover:text-emerald-300">View all →</a>
+            <h2 className="text-sm font-semibold text-[#E8EAED]">Live Chats</h2>
+            <a href="/dashboard/conversations" className="text-xs text-[#00C57A] hover:underline">View all →</a>
           </div>
-          {convos.length === 0 ? (
-            <div className="text-center py-10">
-              <MessageSquare size={28} className="text-zinc-700 mx-auto mb-2" />
-              <p className="text-sm text-zinc-600">No conversations yet</p>
-            </div>
+          {loading ? (
+            <div className="space-y-2">{[1,2,3,4].map(i => <Skeleton key={i} className="h-12 w-full" />)}</div>
+          ) : convos.length === 0 ? (
+            <EmptyState icon={MessageSquare} title="No chats yet" desc="Messages appear here" />
           ) : (
             <div className="space-y-1">
-              {convos.slice(0,7).map((c:any) => (
+              {convos.slice(0, 7).map((c: any) => (
                 <a key={c.id} href="/dashboard/conversations"
-                  className={`flex items-center gap-2.5 p-2.5 rounded-lg transition-colors cursor-pointer ${c.unread>0?'bg-emerald-500/5 border border-emerald-500/10':'hover:bg-zinc-800'}`}>
-                  <Avatar name={c.name} phone={c.phone} />
+                  className={`flex items-center gap-2.5 p-2.5 rounded-xl transition-all ${c.unread > 0 ? 'bg-[rgba(0,197,122,0.06)]' : 'hover:bg-[#1A1D20]'}`}>
+                  <Avatar name={c.name} phone={c.phone} size="sm" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
-                      <p className="text-xs font-medium text-white truncate">{c.name||c.phone}</p>
-                      <p className="text-xs text-zinc-600 ml-1">{c.last_time}</p>
+                      <p className="text-xs font-medium text-[#E8EAED] truncate">{c.name || c.phone}</p>
+                      <p className="text-xs text-[#5A6370] ml-1">{c.last_time}</p>
                     </div>
-                    <p className="text-xs text-zinc-500 truncate mt-0.5">{c.last_msg}</p>
+                    <p className="text-xs text-[#5A6370] truncate mt-0.5">{c.last_msg}</p>
                   </div>
-                  {c.unread>0 && <span className="w-4 h-4 rounded-full bg-emerald-500 text-black text-xs font-bold flex items-center justify-center">{c.unread}</span>}
+                  {c.unread > 0 && <span className="w-4 h-4 rounded-full bg-[#00C57A] text-black text-xs font-bold flex items-center justify-center">{c.unread}</span>}
                 </a>
               ))}
             </div>
           )}
-        </div>
+        </Card>
       </div>
     </div>
   )

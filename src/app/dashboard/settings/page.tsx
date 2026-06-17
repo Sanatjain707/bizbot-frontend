@@ -1,126 +1,85 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
-import { Save, Bot, Clock, CreditCard, Phone } from 'lucide-react'
-
-const inp = "w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-white placeholder:text-zinc-600 outline-none focus:border-emerald-500/50 transition-colors"
-const ta  = "w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-white placeholder:text-zinc-600 outline-none focus:border-emerald-500/50 transition-colors resize-none"
-
-function Section({ title, icon: Icon, children }: any) {
-  return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-4">
-      <div className="flex items-center gap-2 mb-4 pb-3 border-b border-zinc-800">
-        <Icon size={14} className="text-emerald-400" />
-        <h2 className="text-sm font-semibold text-white">{title}</h2>
-      </div>
-      {children}
-    </div>
-  )
-}
-
-function Field({ label, hint, children }: any) {
-  return (
-    <div className="mb-4">
-      <label className="block text-xs font-medium text-zinc-400 mb-1.5">{label}</label>
-      {children}
-      {hint && <p className="text-xs text-zinc-600 mt-1.5">{hint}</p>}
-    </div>
-  )
-}
+import { Card, Button, Input, Textarea, Select, Badge, showToast, Divider } from '@/components/ui'
+import ServicesManager from '@/components/dashboard/ServicesManager'
+import { Save, Bot, Clock, CreditCard, Phone, Building2, Sparkles } from 'lucide-react'
 
 export default function SettingsPage() {
-  const [biz,    setBiz]    = useState<any>({})
-  const [loading,setLoading]= useState(true)
-  const [saving, setSaving] = useState(false)
-  const [toast,  setToast]  = useState('')
+  const [biz,     setBiz]     = useState<any>({})
+  const [loading, setLoading] = useState(true)
+  const [saving,  setSaving]  = useState(false)
 
   useEffect(() => {
-    api.getBusiness().then(({data}) => { if(data) setBiz(data); setLoading(false) })
+    api.getBusiness().then(({ data }) => { if (data) setBiz(data); setLoading(false) })
   }, [])
 
-  const set = (k: string, v: string) => setBiz((p: any) => ({...p, [k]: v}))
+  function set(k: string, v: any) { setBiz((p: any) => ({ ...p, [k]: v })) }
 
   async function save() {
     setSaving(true)
-    const {error} = await api.updateBusiness(biz)
-    setToast(error ? 'Failed to save — try again' : '✓ Settings saved!')
-    setTimeout(() => setToast(''), 3000)
+    const { error } = await api.updateBusiness(biz)
+    showToast(error ? 'Failed to save' : 'Settings saved', error ? 'error' : 'success')
     setSaving(false)
   }
 
-  if (loading) return <div className="text-center py-20 text-zinc-600 text-sm">Loading settings...</div>
+  if (loading) return <div className="text-center py-20 text-[#5A6370] text-sm">Loading settings...</div>
 
   return (
-    <div className="animate-in max-w-2xl">
-      {toast && (
-        <div className={`fixed bottom-6 right-6 text-sm font-medium px-4 py-2.5 rounded-xl z-50 animate-in shadow-lg ${toast.startsWith('✓')?'bg-emerald-500 text-black':'bg-red-500 text-white'}`}>
-          {toast}
-        </div>
-      )}
-
+    <div className="animate-up max-w-2xl">
       <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-xl font-semibold text-white mb-1">Settings</h1>
-          <p className="text-sm text-zinc-500">Configure your business and AI agent</p>
-        </div>
-        <button onClick={save} disabled={saving}
-          className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-black text-sm font-semibold rounded-xl transition-colors disabled:opacity-60">
-          <Save size={14} />{saving ? 'Saving...' : 'Save Changes'}
-        </button>
+        <div><h1 className="text-xl font-bold text-[#E8EAED] mb-1 font-[Syne]">Settings</h1><p className="text-sm text-[#5A6370]">Configure your business and AI</p></div>
+        <Button icon={Save} onClick={save} loading={saving}>Save Changes</Button>
       </div>
 
-      <Section title="Business Information" icon={Bot}>
+      {/* Business Info */}
+      <Card className="p-5 mb-4">
+        <div className="flex items-center gap-2 mb-4 pb-3 border-b border-[rgba(255,255,255,0.06)]"><Building2 size={15} className="text-[#00C57A]" /><h2 className="text-sm font-semibold text-[#E8EAED]">Business Information</h2></div>
         <div className="grid grid-cols-2 gap-4">
-          <Field label="Business Name">
-            <input className={inp} value={biz.name||''} onChange={e=>set('name',e.target.value)} placeholder="Priya Beauty Parlour" />
-          </Field>
-          <Field label="Business Type">
-            <select className={inp} value={biz.type||''} onChange={e=>set('type',e.target.value)}>
-              <option value="">Select type</option>
-              {['Beauty Salon','Coaching Centre','Yoga Studio','Clinic','Home Service','Tailor','Fitness Centre','Other'].map(t=>(
-                <option key={t} value={t}>{t}</option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Owner Name">
-            <input className={inp} value={biz.owner_name||''} onChange={e=>set('owner_name',e.target.value)} placeholder="Your name" />
-          </Field>
+          <Input label="Business Name" value={biz.name || ''} onChange={(e: any) => set('name', e.target.value)} placeholder="Priya Beauty Parlour" />
+          <Select label="Business Type" value={biz.type || ''} onChange={(e: any) => set('type', e.target.value)} options={[{value:'',label:'Select'},{value:'Beauty Salon',label:'Beauty Salon'},{value:'Coaching Centre',label:'Coaching Centre'},{value:'Yoga Studio',label:'Yoga Studio'},{value:'Clinic',label:'Clinic'},{value:'Home Service',label:'Home Service'},{value:'Other',label:'Other'}]} />
+          <Input label="Owner Name" value={biz.owner_name || ''} onChange={(e: any) => set('owner_name', e.target.value)} placeholder="Priya Sharma" className="col-span-2" />
         </div>
-        <Field label="Services Offered" hint="BizBot uses this to answer 'what services do you offer?'">
-          <input className={inp} value={biz.services||''} onChange={e=>set('services',e.target.value)} placeholder="Facial, Haircut, Manicure, Pedicure, Threading" />
-        </Field>
-      </Section>
+      </Card>
 
-      <Section title="Pricing & Payments" icon={CreditCard}>
-        <Field label="Price List" hint="Format: Service ₹Price — AI quotes these exactly to customers">
-          <textarea className={ta} rows={3} value={biz.pricing||''} onChange={e=>set('pricing',e.target.value)}
-            placeholder="Facial ₹800, Haircut ₹300, Manicure ₹500, Threading ₹50" />
-        </Field>
-        <Field label="UPI ID" hint="AI sends this when customers ask how to pay">
-          <input className={inp} value={biz.upi_id||''} onChange={e=>set('upi_id',e.target.value)} placeholder="yourname@upi" />
-        </Field>
-      </Section>
+      {/* Services table */}
+      <ServicesManager services={biz.services_list || []} onChange={(list) => set('services_list', list as any)} />
 
-      <Section title="Hours & Location" icon={Clock}>
-        <Field label="Working Hours" hint="Shared when customers ask about timings">
-          <input className={inp} value={biz.working_hours||''} onChange={e=>set('working_hours',e.target.value)} placeholder="9am - 8pm, Monday to Saturday" />
-        </Field>
-        <Field label="Address" hint="Shared when customers ask for directions">
-          <textarea className={ta} rows={2} value={biz.location||''} onChange={e=>set('location',e.target.value)}
-            placeholder="Shop 12, Green Market, Lajpat Nagar, New Delhi - 110024" />
-        </Field>
-      </Section>
-
-      <Section title="WhatsApp Connection" icon={Phone}>
-        <div className="flex items-center gap-3 p-3 bg-zinc-800/50 rounded-lg">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 pulse flex-shrink-0" />
-          <div>
-            <p className="text-sm text-white font-medium">WhatsApp number connected</p>
-            <p className="text-xs text-zinc-500 font-mono mt-0.5">Phone ID: {biz.whatsapp_phone_id || 'Not configured'}</p>
-          </div>
+      {/* Payment */}
+      <Card className="p-5 mb-4">
+        <div className="flex items-center gap-2 mb-4 pb-3 border-b border-[rgba(255,255,255,0.06)]"><CreditCard size={15} className="text-[#FFA040]" /><h2 className="text-sm font-semibold text-[#E8EAED]">Payment</h2></div>
+        <div className="space-y-4">
+          <Input label="UPI ID" value={biz.upi_id || ''} onChange={(e: any) => set('upi_id', e.target.value)} placeholder="yourname@upi" hint="Shared when customers ask how to pay" />
         </div>
-        <p className="text-xs text-zinc-600 mt-3">To change your WhatsApp number, update WHATSAPP_PHONE_ID in backend .env and restart the server.</p>
-      </Section>
+      </Card>
+
+      {/* Hours & Location */}
+      <Card className="p-5 mb-4">
+        <div className="flex items-center gap-2 mb-4 pb-3 border-b border-[rgba(255,255,255,0.06)]"><Clock size={15} className="text-[#4D9EFF]" /><h2 className="text-sm font-semibold text-[#E8EAED]">Hours & Location</h2></div>
+        <div className="space-y-4">
+          <Input label="Working Hours" value={biz.working_hours || ''} onChange={(e: any) => set('working_hours', e.target.value)} placeholder="9am - 8pm, Monday to Saturday" />
+          <Textarea label="Address" value={biz.location || ''} onChange={(e: any) => set('location', e.target.value)} rows={2} placeholder="Shop 12, Lajpat Nagar, New Delhi" />
+        </div>
+      </Card>
+
+      {/* AI Personality */}
+      <Card className="p-5 mb-4">
+        <div className="flex items-center gap-2 mb-4 pb-3 border-b border-[rgba(255,255,255,0.06)]"><Sparkles size={15} className="text-[#A87EFF]" /><h2 className="text-sm font-semibold text-[#E8EAED]">AI Personality</h2></div>
+        <div className="space-y-4">
+          <Select label="Tone" value={biz.ai_tone || 'friendly'} onChange={(e: any) => set('ai_tone', e.target.value)} options={[{value:'friendly',label:'Friendly & Warm'},{value:'formal',label:'Formal & Professional'},{value:'casual',label:'Casual Hinglish'}]} />
+          <Textarea label="Custom Instructions (optional)" value={biz.ai_instructions || ''} onChange={(e: any) => set('ai_instructions', e.target.value)} placeholder="e.g. Always mention our Sunday discount. Never promise same-day delivery." hint="Extra rules for the AI to follow" />
+        </div>
+      </Card>
+
+      {/* WhatsApp Connection */}
+      <Card className="p-5">
+        <div className="flex items-center gap-2 mb-4 pb-3 border-b border-[rgba(255,255,255,0.06)]"><Phone size={15} className="text-[#00C57A]" /><h2 className="text-sm font-semibold text-[#E8EAED]">WhatsApp Connection</h2></div>
+        <div className="flex items-center gap-3 p-3 bg-[#141618] rounded-xl">
+          <span className="w-2 h-2 rounded-full bg-[#00C57A] pulse-dot" />
+          <div className="flex-1"><p className="text-sm text-[#E8EAED] font-medium">Connected</p><p className="text-xs text-[#5A6370] font-mono">Phone ID: {biz.whatsapp_phone_id || 'Not set'}</p></div>
+          <Badge variant="green">Active</Badge>
+        </div>
+      </Card>
     </div>
   )
 }

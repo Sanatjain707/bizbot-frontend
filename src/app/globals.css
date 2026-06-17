@@ -2,27 +2,102 @@
 @tailwind components;
 @tailwind utilities;
 
-* { box-sizing: border-box; }
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@500;600;700;800&family=Inter:wght@300;400;500;600&display=swap');
+
+/* ── Design tokens ─────────────────────────────────── */
+:root {
+  --bg:       #08090A;
+  --bg2:      #0F1012;
+  --bg3:      #141618;
+  --bg4:      #1A1D20;
+  --bg5:      #202428;
+  --border:   rgba(255,255,255,0.06);
+  --border2:  rgba(255,255,255,0.10);
+  --green:    #00C57A;
+  --green2:   rgba(0,197,122,0.12);
+  --green3:   rgba(0,197,122,0.06);
+  --text:     #E8EAED;
+  --text2:    #9AA0AB;
+  --text3:    #5A6370;
+  --red:      #FF5A5A;
+  --amber:    #FFA040;
+  --blue:     #4D9EFF;
+  --purple:   #A87EFF;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
 
 body {
-  background: #09090b;
-  color: #e4e4e7;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg);
+  color: var(--text);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-size: 14px;
+  line-height: 1.6;
 }
 
-::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #27272a; border-radius: 2px; }
+h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
 
+/* ── Scrollbar ─────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--bg5); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: #2A2F35; }
+
+/* ── Animations ────────────────────────────────────── */
 @keyframes fadeUp {
-  from { opacity: 0; transform: translateY(10px); }
+  from { opacity: 0; transform: translateY(12px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-.animate-in { animation: fadeUp 0.2s ease both; }
-
-@keyframes pulseDot {
-  0%,100% { box-shadow: 0 0 0 0 rgba(52,211,153,0.4); }
-  50%      { box-shadow: 0 0 0 5px rgba(52,211,153,0); }
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
-.pulse { animation: pulseDot 2s infinite; }
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes pulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(0,197,122,0.4); }
+  50%      { box-shadow: 0 0 0 5px rgba(0,197,122,0); }
+}
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.animate-up   { animation: fadeUp  0.25s ease both; }
+.animate-in   { animation: fadeIn  0.2s  ease both; }
+.animate-slide{ animation: slideIn 0.25s ease both; }
+.pulse-dot    { animation: pulse   2s infinite; }
+.spin         { animation: spin    1s linear infinite; }
+
+/* ── Skeleton loader ───────────────────────────────── */
+.skeleton {
+  background: linear-gradient(90deg, var(--bg3) 25%, var(--bg4) 50%, var(--bg3) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 6px;
+}
+
+/* ── Glass effect ──────────────────────────────────── */
+.glass {
+  background: rgba(15,16,18,0.8);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+/* ── Focus ring ────────────────────────────────────── */
+.focus-ring:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+}
+
+/* ── Transitions ───────────────────────────────────── */
+.transition-all { transition: all 0.15s ease; }
