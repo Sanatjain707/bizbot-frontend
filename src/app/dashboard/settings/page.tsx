@@ -74,11 +74,15 @@ export default function SettingsPage() {
       {/* WhatsApp Connection */}
       <Card className="p-5">
         <div className="flex items-center gap-2 mb-4 pb-3 border-b border-[rgba(255,255,255,0.06)]"><Phone size={15} className="text-[#00C57A]" /><h2 className="text-sm font-semibold text-[#E8EAED]">WhatsApp Connection</h2></div>
-        <div className="flex items-center gap-3 p-3 bg-[#141618] rounded-xl">
-          <span className="w-2 h-2 rounded-full bg-[#00C57A] pulse-dot" />
-          <div className="flex-1"><p className="text-sm text-[#E8EAED] font-medium">Connected</p><p className="text-xs text-[#5A6370] font-mono">Phone ID: {biz.whatsapp_phone_id || 'Not set'}</p></div>
-          <Badge variant="green">Active</Badge>
+        <div className="flex items-center gap-3 p-3 bg-[#141618] rounded-xl mb-4">
+          <span className="w-2 h-2 rounded-full pulse-dot" style={{ background: biz.whatsapp_phone_id ? '#00C57A' : '#FFA040' }} />
+          <div className="flex-1">
+            <p className="text-sm text-[#E8EAED] font-medium">{biz.whatsapp_phone_id ? 'Connected' : 'Not connected yet'}</p>
+            <p className="text-xs text-[#5A6370]">{biz.whatsapp_phone_id ? 'BizBot is live on your WhatsApp' : 'Add your Phone Number ID below, or we\'ll connect it for you within 24h'}</p>
+          </div>
+          <Badge variant={biz.whatsapp_phone_id ? 'green' : 'amber'}>{biz.whatsapp_phone_id ? 'Active' : 'Pending'}</Badge>
         </div>
+        <Input label="WhatsApp Phone Number ID" value={biz.whatsapp_phone_id || ''} onChange={(e: any) => set('whatsapp_phone_id', e.target.value)} placeholder="e.g. 123456789012345" hint="From Meta → WhatsApp → API Setup. Leave blank if you want us to set it up." />
       </Card>
     </div>
   )

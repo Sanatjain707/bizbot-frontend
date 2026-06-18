@@ -22,6 +22,31 @@ export async function verifyOtp(phone: string, token: string) {
   return supabase.auth.verifyOtp({ phone: formatted, token, type: 'sms' })
 }
 
+// ── Email + password (free, primary) ──────────────────
+export async function signUpWithEmail(email: string, password: string) {
+  return supabase.auth.signUp({
+    email,
+    password,
+    options: { emailRedirectTo: `${window.location.origin}/login` },
+  })
+}
+export async function signInWithEmail(email: string, password: string) {
+  return supabase.auth.signInWithPassword({ email, password })
+}
+export async function resetPassword(email: string) {
+  return supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${window.location.origin}/login`,
+  })
+}
+
+// ── Google OAuth (free, one click) ────────────────────
+export async function signInWithGoogle() {
+  return supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: `${window.location.origin}/onboarding` },
+  })
+}
+
 export function isLoggedIn() {
   if (typeof window === 'undefined') return false
   const raw = localStorage.getItem('bizbot-session')

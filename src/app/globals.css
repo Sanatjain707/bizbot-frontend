@@ -101,3 +101,18 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
 
 /* ── Transitions ───────────────────────────────────── */
 .transition-all { transition: all 0.15s ease; }
+
+/* ── Landing page styles ──────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+.lp { font-family:'Plus Jakarta Sans',sans-serif; }
+.display { font-family:'Fraunces',serif; }
+@keyframes floatIn { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+@keyframes popIn { from{opacity:0;transform:scale(0.9)} to{opacity:1;transform:scale(1)} }
+@keyframes typing { 0%,60%{opacity:0.3} 30%{opacity:1} }
+.reveal { animation: floatIn 0.6s ease both; }
+.lp a { text-decoration:none; color:inherit; }
+.lp ::selection { background:#FFD96B; }
+@media (max-width:780px){
+  .hero-grid,.feat-grid,.steps-grid,.price-grid{ grid-template-columns:1fr !important; }
+  .hero-h1{ font-size:38px !important; }
+}

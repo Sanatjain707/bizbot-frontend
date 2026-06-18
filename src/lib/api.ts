@@ -13,6 +13,10 @@ async function call<T>(path: string, opts: RequestInit = {}): Promise<{ data: T 
     })
     if (!res.ok) {
       const e = await res.json().catch(() => ({}))
+      // Plan expired — backend blocked a write action
+      if (res.status === 402 || e.error === 'plan_expired') {
+        return { data: null, error: 'Your trial/plan has expired. Please upgrade to continue.' }
+      }
       return { data: null, error: e.error || `HTTP ${res.status}` }
     }
     return { data: await res.json(), error: null }
@@ -56,4 +60,15 @@ export const api = {
   getBusiness:             ()                       => call<any>('/api/business'),
   updateBusiness:          (d: any)                 => call('/api/business', { method: 'PATCH', body: JSON.stringify(d) }),
   createBusiness:          (d: any)                 => call('/api/business/create', { method: 'POST', body: JSON.stringify(d) }),
+
+  // Broadcast — templates
+  getTemplates:            ()                       => call<any[]>('/api/broadcast/templates'),
+  createTemplate:          (d: any)                 => call('/api/broadcast/templates', { method: 'POST', body: JSON.stringify(d) }),
+  deleteTemplate:          (id: string)             => call(`/api/broadcast/templates/${id}`, { method: 'DELETE' }),
+
+  // Broadcast — campaigns
+  getAudience:             (segment: string, value?: string) => call<any>(`/api/broadcast/audience?segment=${segment}${value ? `&value=${encodeURIComponent(value)}` : ''}`),
+  getCampaigns:            ()                       => call<any[]>('/api/broadcast/campaigns'),
+  createCampaign:          (d: any)                 => call('/api/broadcast/campaigns', { method: 'POST', body: JSON.stringify(d) }),
+  sendCampaign:            (id: string)             => call(`/api/broadcast/campaigns/${id}/send`, { method: 'POST' }),
 }

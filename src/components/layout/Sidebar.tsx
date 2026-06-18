@@ -5,7 +5,7 @@ import { signOut } from '@/lib/supabase'
 import { Avatar } from '@/components/ui'
 import {
   LayoutDashboard, MessageSquare, Calendar, CreditCard,
-  Users, Settings, LogOut, Zap, Sparkles
+  Users, Settings, LogOut, Zap, Sparkles, Megaphone, FileText
 } from 'lucide-react'
 
 const NAV = [
@@ -14,6 +14,8 @@ const NAV = [
   { href: '/dashboard/appointments', label: 'Appointments',  icon: Calendar },
   { href: '/dashboard/payments',     label: 'Payments',      icon: CreditCard },
   { href: '/dashboard/customers',    label: 'Customers',     icon: Users },
+  { href: '/dashboard/broadcast',    label: 'Broadcast',     icon: Megaphone },
+  { href: '/dashboard/templates',    label: 'Templates',     icon: FileText },
   { href: '/dashboard/billing',      label: 'Plans & Billing', icon: Sparkles },
   { href: '/dashboard/settings',     label: 'Settings',      icon: Settings },
 ]

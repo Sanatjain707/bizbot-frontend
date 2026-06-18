@@ -1,140 +1,140 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Card, Button, Input, Textarea, Select, showToast } from '@/components/ui'
-import { Building2, Sparkles, Clock, Phone, Check, ArrowRight, ArrowLeft } from 'lucide-react'
+import { supabase, isLoggedIn } from '@/lib/supabase'
 
 const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
+
+const TYPES = ['Beauty Salon', 'Coaching Centre', 'Clinic', 'Boutique', 'Yoga Studio', 'Spa', 'Gym', 'Other']
 
 export default function OnboardingPage() {
   const router = useRouter()
   const [step, setStep] = useState(1)
   const [saving, setSaving] = useState(false)
-  const [data, setData] = useState({
-    name: '', type: 'Beauty Salon', owner_name: '',
-    services: '', pricing: '',
-    working_hours: '9am - 8pm, Monday to Saturday', location: '', upi_id: '',
-    whatsapp_phone_id: '',
-  })
+  const [err, setErr] = useState('')
+  const [authUser, setAuthUser] = useState<any>(null)
+  const [data, setData] = useState({ name: '', type: 'Beauty Salon', owner_name: '', whatsapp_choice: 'managed', whatsapp_phone_id: '' })
+
+  // Capture the signed-up auth user (from email or Google)
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setAuthUser(session.user)
+        // Save session for the rest of the app
+        localStorage.setItem('bizbot-session', JSON.stringify({
+          access_token: session.access_token, refresh_token: session.refresh_token,
+          user: session.user, expires_at: session.expires_at,
+        }))
+      } else if (!isLoggedIn()) {
+        router.replace('/signup')
+      }
+    })
+  }, [router])
 
   function set(k: string, v: string) { setData(p => ({ ...p, [k]: v })) }
 
-  const steps = [
-    { n: 1, label: 'Business', icon: Building2 },
-    { n: 2, label: 'Services', icon: Sparkles },
-    { n: 3, label: 'Hours',    icon: Clock },
-    { n: 4, label: 'WhatsApp', icon: Phone },
-  ]
-
   function next() {
-    if (step === 1 && (!data.name || !data.owner_name)) { showToast('Fill business name and owner', 'error'); return }
-    if (step === 2 && (!data.services || !data.pricing)) { showToast('Fill services and pricing', 'error'); return }
-    setStep(s => Math.min(4, s + 1))
+    setErr('')
+    if (step === 1 && (!data.name.trim() || !data.owner_name.trim())) { setErr('Please fill business name and your name'); return }
+    setStep(2)
   }
 
   async function finish() {
-    setSaving(true)
+    setSaving(true); setErr('')
     try {
       const res = await fetch(`${BASE}/api/business/create`, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify(data),
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: data.name, type: data.type, owner_name: data.owner_name,
+          whatsapp_phone_id: data.whatsapp_choice === 'self' ? data.whatsapp_phone_id : null,
+          auth_user_id: authUser?.id || null,
+          email: authUser?.email || null,
+        }),
       })
       const result = await res.json()
       if (result?.id) {
         localStorage.setItem('bizId', result.id)
-        showToast('Business created! Welcome to BizBot 🎉', 'success')
-        router.push('/dashboard')
+        router.replace('/dashboard')
       } else {
-        showToast(result.error || 'Failed to create business', 'error')
+        setErr(result.error || 'Could not create your business')
       }
-    } catch (e) {
-      showToast('Something went wrong', 'error')
+    } catch (e: any) {
+      setErr(e.message || 'Something went wrong')
     }
     setSaving(false)
   }
 
   return (
-    <div className="min-h-screen bg-[#08090A] flex items-center justify-center px-4 py-8">
-      <div className="w-full max-w-xl">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 mb-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#00C57A] pulse-dot" />
-            <span className="text-2xl font-bold text-[#E8EAED] font-[Syne]">BizBot</span>
-          </div>
-          <p className="text-[#5A6370] text-sm">Let's set up your business in 4 quick steps</p>
-        </div>
-
+    <div style={{ minHeight: '100vh', background: '#FBF7F0', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, fontFamily: "'Plus Jakarta Sans',sans-serif" }}>
+      <div style={{ width: '100%', maxWidth: 480 }}>
         {/* Progress */}
-        <div className="flex items-center justify-between mb-8 px-4">
-          {steps.map((s, i) => {
-            const Icon = s.icon
-            const done = step > s.n
-            const active = step === s.n
-            return (
-              <div key={s.n} className="flex items-center flex-1 last:flex-none">
-                <div className="flex flex-col items-center gap-1.5">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${done ? 'bg-[#00C57A] text-black' : active ? 'bg-[rgba(0,197,122,0.15)] text-[#00C57A] border-2 border-[#00C57A]' : 'bg-[#141618] text-[#5A6370]'}`}>
-                    {done ? <Check size={16} /> : <Icon size={15} />}
-                  </div>
-                  <span className={`text-xs ${active ? 'text-[#00C57A]' : 'text-[#5A6370]'}`}>{s.label}</span>
-                </div>
-                {i < steps.length - 1 && <div className={`flex-1 h-0.5 mx-2 ${done ? 'bg-[#00C57A]' : 'bg-[#1A1D20]'}`} />}
-              </div>
-            )
-          })}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 28, justifyContent: 'center' }}>
+          {[1, 2].map(n => (
+            <div key={n} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ width: 30, height: 30, borderRadius: '50%', background: step >= n ? '#0A8754' : '#E5DDD5', color: step >= n ? '#fff' : '#8A7E72', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700 }}>{n}</div>
+              {n === 1 && <div style={{ width: 40, height: 2, background: step > 1 ? '#0A8754' : '#E5DDD5' }} />}
+            </div>
+          ))}
         </div>
 
-        <Card className="p-6">
-          {step === 1 && (
-            <div className="animate-in space-y-4">
-              <h2 className="text-base font-semibold text-[#E8EAED] mb-2">Tell us about your business</h2>
-              <Input label="Business Name *" value={data.name} onChange={(e: any) => set('name', e.target.value)} placeholder="Priya Beauty Parlour" />
-              <Select label="Business Type" value={data.type} onChange={(e: any) => set('type', e.target.value)} options={[{value:'Beauty Salon',label:'Beauty Salon'},{value:'Coaching Centre',label:'Coaching Centre'},{value:'Yoga Studio',label:'Yoga Studio'},{value:'Clinic',label:'Clinic'},{value:'Home Service',label:'Home Service'},{value:'Other',label:'Other'}]} />
-              <Input label="Owner Name *" value={data.owner_name} onChange={(e: any) => set('owner_name', e.target.value)} placeholder="Priya Sharma" />
-            </div>
-          )}
-          {step === 2 && (
-            <div className="animate-in space-y-4">
-              <h2 className="text-base font-semibold text-[#E8EAED] mb-2">Your services & pricing</h2>
-              <Input label="Services Offered *" value={data.services} onChange={(e: any) => set('services', e.target.value)} placeholder="Facial, Haircut, Manicure, Pedicure" hint="What you offer — AI uses this to answer customers" />
-              <Textarea label="Price List *" value={data.pricing} onChange={(e: any) => set('pricing', e.target.value)} placeholder="Facial ₹800, Haircut ₹300, Manicure ₹500" hint="AI quotes these exact prices" />
-            </div>
-          )}
-          {step === 3 && (
-            <div className="animate-in space-y-4">
-              <h2 className="text-base font-semibold text-[#E8EAED] mb-2">Hours, location & payment</h2>
-              <Input label="Working Hours" value={data.working_hours} onChange={(e: any) => set('working_hours', e.target.value)} />
-              <Textarea label="Address" value={data.location} onChange={(e: any) => set('location', e.target.value)} rows={2} placeholder="Shop 12, Lajpat Nagar, New Delhi" />
-              <Input label="UPI ID" value={data.upi_id} onChange={(e: any) => set('upi_id', e.target.value)} placeholder="yourname@upi" hint="For collecting payments" />
-            </div>
-          )}
-          {step === 4 && (
-            <div className="animate-in space-y-4">
-              <h2 className="text-base font-semibold text-[#E8EAED] mb-2">Connect WhatsApp</h2>
-              <Input label="WhatsApp Phone Number ID *" value={data.whatsapp_phone_id} onChange={(e: any) => set('whatsapp_phone_id', e.target.value)} placeholder="From Meta Developer dashboard" hint="Meta Developer → WhatsApp → API Setup → Phone number ID" />
-              <div className="bg-[#141618] rounded-xl p-4 text-xs text-[#9AA0AB] leading-relaxed">
-                <p className="font-medium text-[#E8EAED] mb-2">How to get your Phone Number ID:</p>
-                1. Go to developers.facebook.com<br />
-                2. Your app → WhatsApp → API Setup<br />
-                3. Copy the "Phone number ID" value<br />
-                4. Paste it above
-              </div>
-            </div>
-          )}
+        <div style={{ background: '#fff', borderRadius: 20, padding: 36, boxShadow: '0 12px 40px rgba(0,0,0,0.06)' }}>
+          {step === 1 ? (
+            <>
+              <h1 style={{ fontSize: 26, fontWeight: 700, color: '#1A1410', marginBottom: 6, fontFamily: "'Fraunces',serif" }}>Tell us about your business</h1>
+              <p style={{ fontSize: 14, color: '#8A7E72', marginBottom: 26 }}>Just the basics to get started — you can add services & prices later.</p>
 
-          <div className="flex items-center justify-between mt-6 pt-4 border-t border-[rgba(255,255,255,0.06)]">
-            {step > 1 ? (
-              <Button variant="ghost" size="sm" icon={ArrowLeft} onClick={() => setStep(s => s - 1)}>Back</Button>
-            ) : <div />}
-            {step < 4 ? (
-              <Button size="sm" onClick={next}>Next <ArrowRight size={14} /></Button>
-            ) : (
-              <Button size="sm" loading={saving} onClick={finish}>Finish Setup 🎉</Button>
-            )}
-          </div>
-        </Card>
+              <label style={lbl}>Business name *</label>
+              <input value={data.name} onChange={e => set('name', e.target.value)} placeholder="Noah Wills Boutique" style={inp} />
+
+              <label style={{ ...lbl, marginTop: 18 }}>Business type *</label>
+              <select value={data.type} onChange={e => set('type', e.target.value)} style={inp}>
+                {TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+
+              <label style={{ ...lbl, marginTop: 18 }}>Your name *</label>
+              <input value={data.owner_name} onChange={e => set('owner_name', e.target.value)} placeholder="Noah" style={inp} />
+
+              {err && <p style={errStyle}>{err}</p>}
+              <button onClick={next} style={btn}>Continue →</button>
+            </>
+          ) : (
+            <>
+              <h1 style={{ fontSize: 26, fontWeight: 700, color: '#1A1410', marginBottom: 6, fontFamily: "'Fraunces',serif" }}>Connect WhatsApp</h1>
+              <p style={{ fontSize: 14, color: '#8A7E72', marginBottom: 22 }}>This is how BizBot talks to your customers.</p>
+
+              <div onClick={() => set('whatsapp_choice', 'managed')} style={optCard(data.whatsapp_choice === 'managed')}>
+                <div style={{ fontWeight: 700, fontSize: 15, color: '#1A1410', marginBottom: 4 }}>✅ We'll set it up for you (recommended)</div>
+                <div style={{ fontSize: 13, color: '#5C5248', lineHeight: 1.5 }}>Our team connects your WhatsApp number within 24 hours. You can explore the dashboard right away.</div>
+              </div>
+
+              <div onClick={() => set('whatsapp_choice', 'self')} style={optCard(data.whatsapp_choice === 'self')}>
+                <div style={{ fontWeight: 700, fontSize: 15, color: '#1A1410', marginBottom: 4 }}>🔧 I have my WhatsApp Phone Number ID</div>
+                <div style={{ fontSize: 13, color: '#5C5248', lineHeight: 1.5 }}>Already set up with Meta? Enter your Phone Number ID to connect instantly.</div>
+                {data.whatsapp_choice === 'self' && (
+                  <input value={data.whatsapp_phone_id} onChange={e => set('whatsapp_phone_id', e.target.value)} placeholder="e.g. 123456789012345" style={{ ...inp, marginTop: 12 }} onClick={e => e.stopPropagation()} />
+                )}
+              </div>
+
+              {err && <p style={errStyle}>{err}</p>}
+              <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+                <button onClick={() => setStep(1)} style={{ ...btn, background: '#F0EBE4', color: '#1A1410', flex: '0 0 auto', width: 100 }}>← Back</button>
+                <button onClick={finish} disabled={saving} style={{ ...btn, flex: 1, marginTop: 0, opacity: saving ? 0.7 : 1 }}>{saving ? 'Setting up…' : 'Go to dashboard →'}</button>
+              </div>
+            </>
+          )}
+        </div>
+        <p style={{ textAlign: 'center', fontSize: 13, color: '#8A7E72', marginTop: 18 }}>🎁 Your 30-day free trial starts now</p>
       </div>
     </div>
   )
 }
+
+const lbl: any = { fontSize: 13, fontWeight: 600, color: '#1A1410', display: 'block', marginBottom: 6 }
+const inp: any = { width: '100%', padding: '12px 14px', borderRadius: 12, border: '1.5px solid rgba(0,0,0,0.12)', fontSize: 15, outline: 'none', fontFamily: 'inherit', background: '#fff', color: '#1A1410' }
+const btn: any = { width: '100%', padding: '13px', borderRadius: 12, border: 'none', background: '#0A8754', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', marginTop: 24 }
+const errStyle: any = { color: '#D93636', fontSize: 13, marginTop: 14 }
+const optCard = (active: boolean): any => ({
+  border: `2px solid ${active ? '#0A8754' : 'rgba(0,0,0,0.1)'}`,
+  background: active ? 'rgba(10,135,84,0.04)' : '#fff',
+  borderRadius: 14, padding: 16, marginBottom: 12, cursor: 'pointer', transition: 'all 0.15s',
+})

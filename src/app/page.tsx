@@ -18,23 +18,6 @@ export default function LandingPage() {
       <FAQ />
       <FinalCTA />
       <Footer />
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
-        * { margin:0; padding:0; box-sizing:border-box; }
-        .lp { font-family:'Plus Jakarta Sans',sans-serif; }
-        .display { font-family:'Fraunces',serif; }
-        @keyframes floatIn { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes popIn { from{opacity:0;transform:scale(0.9)} to{opacity:1;transform:scale(1)} }
-        @keyframes typing { 0%,60%{opacity:0.3} 30%{opacity:1} }
-        .reveal { animation: floatIn 0.6s ease both; }
-        html { scroll-behavior:smooth; }
-        a { text-decoration:none; color:inherit; }
-        ::selection { background:#FFD96B; }
-        @media (max-width:780px){
-          .hero-grid,.feat-grid,.steps-grid,.price-grid{ grid-template-columns:1fr !important; }
-          .hero-h1{ font-size:38px !important; }
-        }
-      `}</style>
     </div>
   )
 }
@@ -49,7 +32,7 @@ function Nav() {
         </div>
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
           <Link href="/login" style={{ padding:'9px 18px', fontSize:14, fontWeight:600 }}>Log in</Link>
-          <Link href="/onboarding" style={{ padding:'9px 20px', fontSize:14, fontWeight:700, background:'#0A8754', color:'#fff', borderRadius:10 }}>Start free</Link>
+          <Link href="/signup" style={{ padding:'9px 20px', fontSize:14, fontWeight:700, background:'#0A8754', color:'#fff', borderRadius:10 }}>Start free</Link>
         </div>
       </div>
     </nav>
@@ -70,7 +53,7 @@ function Hero() {
           BizBot replies to customers, books appointments, and chases payments on WhatsApp — in Hindi, English, or Hinglish. Even while you sleep.
         </p>
         <div style={{ display:'flex', gap:12, marginBottom:18, flexWrap:'wrap' }}>
-          <Link href="/onboarding" style={{ padding:'14px 28px', fontSize:16, fontWeight:700, background:'#0A8754', color:'#fff', borderRadius:12, boxShadow:'0 8px 24px rgba(10,135,84,0.25)' }}>Start 30-day free trial →</Link>
+          <Link href="/signup" style={{ padding:'14px 28px', fontSize:16, fontWeight:700, background:'#0A8754', color:'#fff', borderRadius:12, boxShadow:'0 8px 24px rgba(10,135,84,0.25)' }}>Start 30-day free trial →</Link>
           <a href="#demo" style={{ padding:'14px 24px', fontSize:16, fontWeight:600, background:'#fff', border:'1.5px solid rgba(0,0,0,0.1)', borderRadius:12 }}>See it work</a>
         </div>
         <p style={{ fontSize:13, color:'#8A7E72' }}>✓ No credit card &nbsp; ✓ Set up in 15 minutes &nbsp; ✓ Cancel anytime</p>
@@ -275,7 +258,7 @@ function Pricing() {
             {popular && <div style={{ position:'absolute', top:-12, left:'50%', transform:'translateX(-50%)', background:'#FFD96B', color:'#1A1410', padding:'4px 14px', borderRadius:14, fontSize:12, fontWeight:700 }}>MOST POPULAR</div>}
             <h3 style={{ fontSize:18, fontWeight:700, marginBottom:6 }}>{name}</h3>
             <div style={{ marginBottom:20 }}><span className="display" style={{ fontSize:40, fontWeight:700 }}>₹{price}</span><span style={{ fontSize:14, opacity:0.6 }}>/month</span></div>
-            <Link href="/onboarding" style={{ display:'block', textAlign:'center', padding:'12px', borderRadius:11, fontWeight:700, fontSize:15, marginBottom:22, background:'#0A8754', color:'#fff' }}>Start free trial</Link>
+            <Link href="/signup" style={{ display:'block', textAlign:'center', padding:'12px', borderRadius:11, fontWeight:700, fontSize:15, marginBottom:22, background:'#0A8754', color:'#fff' }}>Start free trial</Link>
             <div style={{ display:'flex', flexDirection:'column', gap:11 }}>
               {feats.map((f:string,j:number)=>(
                 <div key={j} style={{ display:'flex', gap:9, fontSize:14, alignItems:'flex-start' }}>
@@ -324,7 +307,7 @@ function FinalCTA() {
       <div style={{ background:'linear-gradient(135deg,#0A8754,#0d6e47)', borderRadius:28, padding:'56px 40px', textAlign:'center', color:'#fff', boxShadow:'0 20px 50px rgba(10,135,84,0.3)' }}>
         <h2 className="display" style={{ fontSize:40, fontWeight:700, marginBottom:14, lineHeight:1.15 }}>Stop losing customers to slow replies.</h2>
         <p style={{ fontSize:17, opacity:0.9, maxWidth:480, margin:'0 auto 30px', lineHeight:1.5 }}>Give BizBot 30 days. Watch it book appointments and recover payments while you focus on your work.</p>
-        <Link href="/onboarding" style={{ display:'inline-block', background:'#FFD96B', color:'#1A1410', padding:'16px 36px', borderRadius:13, fontSize:17, fontWeight:700, boxShadow:'0 8px 20px rgba(0,0,0,0.15)' }}>Start your free trial →</Link>
+        <Link href="/signup" style={{ display:'inline-block', background:'#FFD96B', color:'#1A1410', padding:'16px 36px', borderRadius:13, fontSize:17, fontWeight:700, boxShadow:'0 8px 20px rgba(0,0,0,0.15)' }}>Start your free trial →</Link>
         <p style={{ fontSize:13, opacity:0.8, marginTop:16 }}>No card needed · We help you set up · Cancel anytime</p>
       </div>
     </section>
@@ -339,7 +322,7 @@ function Footer() {
           <span style={{ fontSize:20 }}>🤖</span><span className="display" style={{ fontSize:20, fontWeight:700 }}>BizBot</span>
         </div>
         <div style={{ display:'flex', gap:24, fontSize:14 }}>
-          <a href="#demo">Demo</a><a href="#pricing">Pricing</a><Link href="/login">Log in</Link><Link href="/onboarding">Start free</Link>
+          <a href="#demo">Demo</a><a href="#pricing">Pricing</a><Link href="/login">Log in</Link><Link href="/signup">Start free</Link>
         </div>
         <div style={{ fontSize:13 }}>© 2026 BizBot · Made in India 🇮🇳</div>
       </div>
