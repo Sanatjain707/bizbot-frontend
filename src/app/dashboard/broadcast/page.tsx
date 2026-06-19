@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
 import { Card, Button, Badge, Modal, Input, Select, EmptyState, Skeleton, showToast } from '@/components/ui'
+import LockGate from '@/components/dashboard/LockGate'
 import { Plus, Megaphone, Send, Users, IndianRupee, Eye, MessageSquare, CheckCheck, FileText } from 'lucide-react'
 
 const SEGMENTS = [
@@ -74,7 +75,7 @@ export default function BroadcastPage() {
     <div className="animate-up">
       <div className="flex items-center justify-between mb-6">
         <div><h1 className="text-xl font-bold text-[#E8EAED] mb-1 font-[Syne]">Broadcast</h1><p className="text-sm text-[#5A6370]">Send offers & updates to your customers via approved templates</p></div>
-        <Button icon={Plus} onClick={() => setModal(true)}>New Campaign</Button>
+        <LockGate hint="Upgrade to send broadcasts"><Button icon={Plus} onClick={() => setModal(true)}>New Campaign</Button></LockGate>
       </div>
 
       {approvedTemplates.length === 0 && !loading && (

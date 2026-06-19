@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
 import { Card, Button, Input, Textarea, Select, Badge, showToast, Divider } from '@/components/ui'
 import ServicesManager from '@/components/dashboard/ServicesManager'
+import HoursLocation from '@/components/dashboard/HoursLocation'
 import { Save, Bot, Clock, CreditCard, Phone, Building2, Sparkles } from 'lucide-react'
 
 export default function SettingsPage() {
@@ -54,13 +55,7 @@ export default function SettingsPage() {
       </Card>
 
       {/* Hours & Location */}
-      <Card className="p-5 mb-4">
-        <div className="flex items-center gap-2 mb-4 pb-3 border-b border-[rgba(255,255,255,0.06)]"><Clock size={15} className="text-[#4D9EFF]" /><h2 className="text-sm font-semibold text-[#E8EAED]">Hours & Location</h2></div>
-        <div className="space-y-4">
-          <Input label="Working Hours" value={biz.working_hours || ''} onChange={(e: any) => set('working_hours', e.target.value)} placeholder="9am - 8pm, Monday to Saturday" />
-          <Textarea label="Address" value={biz.location || ''} onChange={(e: any) => set('location', e.target.value)} rows={2} placeholder="Shop 12, Lajpat Nagar, New Delhi" />
-        </div>
-      </Card>
+      <HoursLocation biz={biz} set={set} />
 
       {/* AI Personality */}
       <Card className="p-5 mb-4">

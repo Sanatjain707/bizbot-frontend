@@ -1,12 +1,14 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   signInWithEmail, signInWithGoogle, resetPassword,
-  signInWithPhone, verifyOtp, saveSession
+  signInWithPhone, verifyOtp, saveSession, destinationForUser
 } from '@/lib/supabase'
 
 export default function LoginPage() {
+  const router = useRouter()
   const [mode, setMode] = useState<'email' | 'phone'>('email')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -17,14 +19,20 @@ export default function LoginPage() {
   const [err, setErr] = useState('')
   const [info, setInfo] = useState('')
 
+  // If already fully set up (has a business), skip straight to dashboard.
+  // Otherwise show the login form normally.
+  useEffect(() => {
+    destinationForUser().then(dest => { if (dest === '/dashboard') router.replace('/dashboard') })
+  }, [])
+
   async function emailLogin() {
     if (!email.includes('@')) { setErr('Enter a valid email'); return }
     setErr(''); setLoading(true)
     const { data, error } = await signInWithEmail(email, password)
-    setLoading(false)
-    if (error || !data.session) { setErr(error?.message || 'Login failed'); return }
+    if (error || !data.session) { setLoading(false); setErr(error?.message || 'Login failed'); return }
     saveSession(data.session)
-    window.location.replace('/dashboard')
+    const dest = await destinationForUser(data.session.user)
+    router.replace(dest)
   }
 
   async function google() {
@@ -53,10 +61,10 @@ export default function LoginPage() {
     if (otp.length < 4) { setErr('Enter the OTP'); return }
     setErr(''); setLoading(true)
     const { data, error } = await verifyOtp(phone, otp)
-    setLoading(false)
-    if (error || !data?.session) { setErr(error?.message || 'Invalid OTP'); return }
+    if (error || !data?.session) { setLoading(false); setErr(error?.message || 'Invalid OTP'); return }
     saveSession(data.session)
-    window.location.replace('/dashboard')
+    const dest = await destinationForUser(data.session.user)
+    router.replace(dest)
   }
 
   return (

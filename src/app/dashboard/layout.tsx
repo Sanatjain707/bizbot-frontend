@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Sidebar from '@/components/layout/Sidebar'
 import { PlanProvider } from '@/components/dashboard/PlanBanner'
-import { isLoggedIn } from '@/lib/supabase'
+import { getCurrentUser, destinationForUser } from '@/lib/supabase'
 import { api } from '@/lib/api'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -13,14 +13,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   useEffect(() => {
     async function init() {
-      if (!isLoggedIn()) { router.replace('/login'); return }
+      const user = await getCurrentUser()
+      if (!user) { router.replace('/login'); return }
+
+      // Ensure bizId is set. destinationForUser stores it and tells us where to go.
+      if (typeof window !== 'undefined' && !localStorage.getItem('bizId')) {
+        const dest = await destinationForUser(user)
+        if (dest === '/onboarding') { router.replace('/onboarding'); return }
+      }
+
       const { data } = await api.getBusiness()
       if (data?.id) {
         localStorage.setItem('bizId', data.id)
         const active = data.plan_expires_at ? new Date(data.plan_expires_at) > new Date() : false
         setBiz({ ...data, planActive: active })
       } else {
-        // No business yet → send to onboarding
         router.replace('/onboarding'); return
       }
       setReady(true)

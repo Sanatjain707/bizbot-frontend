@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase, isLoggedIn } from '@/lib/supabase'
+import { supabase, getCurrentUser, destinationForUser } from '@/lib/supabase'
 
 const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
 
@@ -15,20 +15,33 @@ export default function OnboardingPage() {
   const [authUser, setAuthUser] = useState<any>(null)
   const [data, setData] = useState({ name: '', type: 'Beauty Salon', owner_name: '', whatsapp_choice: 'managed', whatsapp_phone_id: '' })
 
-  // Capture the signed-up auth user (from email or Google)
+  // Capture the signed-up auth user. If they ALREADY have a business, skip to dashboard.
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        setAuthUser(session.user)
-        // Save session for the rest of the app
-        localStorage.setItem('bizbot-session', JSON.stringify({
-          access_token: session.access_token, refresh_token: session.refresh_token,
-          user: session.user, expires_at: session.expires_at,
-        }))
-      } else if (!isLoggedIn()) {
-        router.replace('/signup')
-      }
+    let done = false
+    async function resolve(user: any) {
+      if (done || !user) return
+      done = true
+      setAuthUser(user)
+      const dest = await destinationForUser(user)  // sets bizId + decides route
+      if (dest === '/dashboard') router.replace('/dashboard')
+      // else stay here on /onboarding to collect business details
+    }
+
+    getCurrentUser().then(user => { if (user) resolve(user) })
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+      if (session?.user) resolve(session.user)
     })
+
+    const t = setTimeout(async () => {
+      if (!done) {
+        const user = await getCurrentUser()
+        if (user) resolve(user)
+        else router.replace('/signup')
+      }
+    }, 2500)
+
+    return () => { sub.subscription.unsubscribe(); clearTimeout(t) }
   }, [router])
 
   function set(k: string, v: string) { setData(p => ({ ...p, [k]: v })) }

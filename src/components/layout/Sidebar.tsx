@@ -24,8 +24,8 @@ export default function Sidebar({ bizName, bizType, plan, planActive, unread = 0
   const path   = usePathname()
   const router = useRouter()
 
-  function handleSignOut() {
-    signOut()
+  async function handleSignOut() {
+    await signOut()
     router.push('/login')
   }
 

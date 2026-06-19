@@ -121,8 +121,14 @@ function LiveDemo() {
   const [input, setInput] = useState('')
   const [typing, setTyping] = useState(false)
   const endRef = useRef<HTMLDivElement>(null)
+  const scrollBoxRef = useRef<HTMLDivElement>(null)
+  const firstRender = useRef(true)
 
-  useEffect(()=>{ endRef.current?.scrollIntoView({ behavior:'smooth' }) }, [messages, typing])
+  useEffect(()=>{
+    if (firstRender.current) { firstRender.current = false; return }
+    const box = scrollBoxRef.current
+    if (box) box.scrollTop = box.scrollHeight
+  }, [messages, typing])
 
   async function send() {
     if (!input.trim() || typing) return
@@ -155,7 +161,7 @@ function LiveDemo() {
           <div style={{ width:34, height:34, borderRadius:'50%', background:'rgba(255,255,255,0.2)', display:'flex', alignItems:'center', justifyContent:'center' }}>🤖</div>
           <div><div style={{ fontWeight:700, fontSize:15 }}>BizBot Demo</div><div style={{ fontSize:11, opacity:0.85 }}>● always online</div></div>
         </div>
-        <div style={{ padding:18, minHeight:280, maxHeight:380, overflowY:'auto', display:'flex', flexDirection:'column', gap:10 }}>
+        <div ref={scrollBoxRef} style={{ padding:18, minHeight:280, maxHeight:380, overflowY:'auto', display:'flex', flexDirection:'column', gap:10 }}>
           {messages.map((m,i)=>(
             <div key={i} style={{ alignSelf:m.from==='bot'?'flex-start':'flex-end', maxWidth:'78%', background:m.from==='bot'?'#fff':'#DCF8C6', padding:'9px 13px', borderRadius:12, fontSize:14, lineHeight:1.45, boxShadow:'0 1px 1px rgba(0,0,0,0.08)' }}>{m.text}</div>
           ))}

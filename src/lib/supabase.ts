@@ -6,11 +6,22 @@ export const supabase = createClient(
   {
     auth: {
       persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,   // needed so Google OAuth redirect populates the session
       storageKey: 'bizbot-auth',
       storage: typeof window !== 'undefined' ? window.localStorage : undefined,
     }
   }
 )
+
+// Keep a lightweight mirror of the session in `bizbot-session` so synchronous
+// checks (isLoggedIn) work. Supabase's own store stays the source of truth.
+if (typeof window !== 'undefined') {
+  supabase.auth.onAuthStateChange((_event, session) => {
+    if (session) saveSession(session)
+    else localStorage.removeItem('bizbot-session')
+  })
+}
 
 export async function signInWithPhone(phone: string) {
   const formatted = phone.startsWith('+') ? phone : `+91${phone}`
@@ -40,13 +51,16 @@ export async function resetPassword(email: string) {
 }
 
 // ── Google OAuth (free, one click) ────────────────────
+// Always redirect to a neutral callback that decides dashboard-vs-onboarding
+// based purely on whether this Google identity already has an account.
 export async function signInWithGoogle() {
   return supabase.auth.signInWithOAuth({
     provider: 'google',
-    options: { redirectTo: `${window.location.origin}/onboarding` },
+    options: { redirectTo: `${window.location.origin}/auth/callback` },
   })
 }
 
+// Synchronous best-effort check using the mirror.
 export function isLoggedIn() {
   if (typeof window === 'undefined') return false
   const raw = localStorage.getItem('bizbot-session')
@@ -58,7 +72,38 @@ export function isLoggedIn() {
   } catch { return false }
 }
 
+// Authoritative async check — asks Supabase directly (handles OAuth + refresh).
+export async function getCurrentUser() {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (session) saveSession(session)
+  return session?.user || null
+}
+
+// SINGLE SOURCE OF TRUTH for post-auth routing.
+// Given a logged-in user, decides: do they have a business?
+//   → yes: store bizId, return '/dashboard'
+//   → no:  return '/onboarding'
+// Returns '/login' if there's no user at all.
+export async function destinationForUser(user?: any) {
+  const u = user || (await getCurrentUser())
+  if (!u) return '/login'
+  try {
+    const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
+    const params = new URLSearchParams()
+    if (u.id) params.set('auth_user_id', u.id)
+    if (u.email) params.set('email', u.email)
+    const res = await fetch(`${base}/api/business/by-user?${params.toString()}`)
+    const { business } = await res.json()
+    if (business?.id) {
+      if (typeof window !== 'undefined') localStorage.setItem('bizId', business.id)
+      return '/dashboard'
+    }
+  } catch (_) {}
+  return '/onboarding'
+}
+
 export function saveSession(session: any) {
+  if (!session) return
   localStorage.setItem('bizbot-session', JSON.stringify({
     access_token:  session.access_token,
     refresh_token: session.refresh_token,
@@ -67,8 +112,8 @@ export function saveSession(session: any) {
   }))
 }
 
-export function signOut() {
+export async function signOut() {
   localStorage.removeItem('bizbot-session')
   localStorage.removeItem('bizId')
-  supabase.auth.signOut()
+  await supabase.auth.signOut()
 }

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import { Card, StatCard, Avatar, Badge, Button, SkeletonCard, Skeleton, EmptyState } from '@/components/ui'
+import GettingStarted from '@/components/dashboard/GettingStarted'
 import { Calendar, MessageSquare, CreditCard, Users, Plus, Zap, AlertTriangle, TrendingUp, Clock } from 'lucide-react'
 
 const STATUS_CLS: any = {
@@ -15,21 +16,23 @@ export default function DashboardPage() {
   const [appts,   setAppts]   = useState<any[]>([])
   const [convos,  setConvos]  = useState<any[]>([])
   const [customers, setCustomers] = useState<any[]>([])
+  const [biz,     setBiz]     = useState<any>({})
   const [loading, setLoading] = useState(true)
 
   const today = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })
-  const hour = Number(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata', hour: '2-digit', hour12: false }))
+  const hour  = Number(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata', hour: '2-digit', hour12: false }))
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
 
   useEffect(() => {
     async function load() {
-      const [s, a, c, cust] = await Promise.all([
-        api.getStats(), api.getTodayAppointments(), api.getConversations(), api.getCustomers()
+      const [s, a, c, cust, b] = await Promise.all([
+        api.getStats(), api.getTodayAppointments(), api.getConversations(), api.getCustomers(), api.getBusiness()
       ])
       if (s.data) setStats(s.data)
       if (a.data) setAppts(a.data)
       if (c.data) setConvos(c.data)
       if (cust.data) setCustomers(cust.data)
+      if (b.data) setBiz(b.data)
       setLoading(false)
     }
     load()
@@ -51,10 +54,19 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-bold text-[#E8EAED] mb-1 font-[Syne]">{greeting} 👋</h1>
           <p className="text-sm text-[#5A6370]">{today}</p>
         </div>
-        <Badge variant="green" size="md">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#00C57A] pulse-dot mr-1.5" /> AI Active
-        </Badge>
+        {biz.whatsapp_phone_id ? (
+          <Badge variant="green" size="md">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#00C57A] pulse-dot mr-1.5" /> WhatsApp Live
+          </Badge>
+        ) : (
+          <Badge variant="amber" size="md">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#FFA040] pulse-dot mr-1.5" /> WhatsApp Connecting
+          </Badge>
+        )}
       </div>
+
+      {/* Getting started checklist (auto-hides when complete) */}
+      {!loading && <GettingStarted biz={biz} servicesCount={(biz.services_list || []).length} />}
 
       {/* Stats */}
       {loading ? (

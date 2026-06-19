@@ -1,14 +1,21 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { signUpWithEmail, signInWithGoogle, saveSession } from '@/lib/supabase'
+import { signUpWithEmail, signInWithGoogle, saveSession, destinationForUser } from '@/lib/supabase'
 
 export default function SignupPage() {
+  const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState('')
   const [sent, setSent] = useState(false)
+
+  // Only skip the form if they're already fully set up (have a business).
+  useEffect(() => {
+    destinationForUser().then(dest => { if (dest === '/dashboard') router.replace('/dashboard') })
+  }, [])
 
   async function signup() {
     if (!email.includes('@')) { setErr('Enter a valid email'); return }
@@ -20,7 +27,7 @@ export default function SignupPage() {
     // If email confirmation is OFF, we get a session immediately → go to onboarding
     if (data.session) {
       saveSession(data.session)
-      window.location.replace('/onboarding')
+      router.replace('/onboarding')
     } else {
       // Email confirmation ON → ask them to verify
       setSent(true)
