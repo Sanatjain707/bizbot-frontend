@@ -12,7 +12,32 @@ export default function SettingsPage() {
   const [saving,  setSaving]  = useState(false)
 
   useEffect(() => {
-    api.getBusiness().then(({ data }) => { if (data) setBiz(data); setLoading(false) })
+    async function loadSettings() {
+      // Try the normal way first (uses bizId header)
+      let { data } = await api.getBusiness()
+      // Fallback: if that's empty, resolve via the logged-in user (same as layout)
+      if (!data?.id) {
+        try {
+          const { getCurrentUser } = await import('@/lib/supabase')
+          const user = await getCurrentUser()
+          if (user) {
+            const params = new URLSearchParams()
+            if (user.id) params.set('auth_user_id', user.id)
+            if (user.email) params.set('email', user.email)
+            const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
+            const res = await fetch(`${base}/api/business/by-user?${params.toString()}`)
+            const j = await res.json()
+            if (j.business?.id) {
+              localStorage.setItem('bizId', j.business.id)
+              data = j.business
+            }
+          }
+        } catch (_) {}
+      }
+      if (data) setBiz(data)
+      setLoading(false)
+    }
+    loadSettings()
   }, [])
 
   function set(k: string, v: any) { setBiz((p: any) => ({ ...p, [k]: v })) }
