@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Sidebar from '@/components/layout/Sidebar'
 import { PlanProvider } from '@/components/dashboard/PlanBanner'
-import { getCurrentUser, destinationForUser } from '@/lib/supabase'
+import { getCurrentUser } from '@/lib/supabase'
 import { api } from '@/lib/api'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -27,15 +27,37 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       const user = await getCurrentUser()
       if (!user) { router.replace('/login'); return }
 
-      // Ensure bizId is set. destinationForUser stores it and tells us where to go.
-      if (typeof window !== 'undefined' && !localStorage.getItem('bizId')) {
-        const dest = await destinationForUser(user)
-        if (dest === '/onboarding') { router.replace('/onboarding'); return }
+      // Authoritatively resolve the business for THIS user via by-user.
+      // This is the single source of truth — never bounce to onboarding on a
+      // transient getBusiness() failure (that caused an onboarding↔dashboard loop).
+      try {
+        const params = new URLSearchParams()
+        if (user.id) params.set('auth_user_id', user.id)
+        if (user.email) params.set('email', user.email)
+        const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
+        const res = await fetch(`${base}/api/business/by-user?${params.toString()}`)
+        const { business } = await res.json()
+        if (business?.id) {
+          localStorage.setItem('bizId', business.id)
+          if (typeof window !== 'undefined') sessionStorage.removeItem('onboarding-redirect')
+          const active = business.plan_expires_at ? new Date(business.plan_expires_at) > new Date() : false
+          setBiz({ ...business, planActive: active })
+          setReady(true)
+          return
+        }
+        // No business for this user → genuinely needs onboarding.
+        // Guard against any bounce loop: only redirect if we haven't already.
+        if (typeof window !== 'undefined' && !sessionStorage.getItem('onboarding-redirect')) {
+          sessionStorage.setItem('onboarding-redirect', '1')
+          router.replace('/onboarding')
+        }
+        return
+      } catch (_) {
+        // Network hiccup — fall back to bizId-based load rather than looping
+        const ok = await loadBiz()
+        if (ok) setReady(true)
+        else router.replace('/onboarding')
       }
-
-      const ok = await loadBiz()
-      if (!ok) { router.replace('/onboarding'); return }
-      setReady(true)
     }
     init()
 
