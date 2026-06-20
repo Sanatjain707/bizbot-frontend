@@ -32,6 +32,8 @@ export default function AppointmentsPage() {
   }
   async function create() {
     if (!form.customer_name || !form.service || !form.appointment_date || !form.appointment_time) { showToast('Fill all required fields', 'error'); return }
+    const phone = (form.customer_phone || '').replace(/\D/g, '')
+    if (phone.length < 10) { showToast('Enter a valid 10-digit phone number', 'error'); return }
     setSaving(true)
     const dt = new Date(`${form.appointment_date}T${form.appointment_time}:00`)
     const { error } = await api.createAppointment({ customer_name: form.customer_name, customer_phone: form.customer_phone, service: form.service, appointment_time: dt.toISOString(), notes: form.notes, status: 'confirmed' })
@@ -125,7 +127,7 @@ export default function AppointmentsPage() {
       <Modal open={showForm} onClose={() => setShowForm(false)} title="New Appointment">
         <div className="grid grid-cols-2 gap-4">
           <Input label="Customer Name *" placeholder="Priya Sharma" value={form.customer_name} onChange={(e: any) => setForm(p => ({ ...p, customer_name: e.target.value }))} />
-          <Input label="Phone" placeholder="9876543210" value={form.customer_phone} onChange={(e: any) => setForm(p => ({ ...p, customer_phone: e.target.value }))} />
+          <Input label="Phone *" placeholder="9876543210" value={form.customer_phone} onChange={(e: any) => setForm(p => ({ ...p, customer_phone: e.target.value }))} />
           <Input label="Service *" placeholder="Facial..." value={form.service} onChange={(e: any) => setForm(p => ({ ...p, service: e.target.value }))} />
           <Input label="Notes" placeholder="Optional" value={form.notes} onChange={(e: any) => setForm(p => ({ ...p, notes: e.target.value }))} />
           <Input label="Date *" type="date" value={form.appointment_date} onChange={(e: any) => setForm(p => ({ ...p, appointment_date: e.target.value }))} />

@@ -86,9 +86,15 @@ export default function HoursLocation({ biz, set }: { biz: any; set: (k: string,
             )
           })}
         </div>
+        <div className="mt-4 pt-4 border-t border-[rgba(255,255,255,0.06)]">
+          <label className="text-xs font-medium text-[#9AA0AB] block mb-1.5">Last booking time</label>
+          <div className="flex items-center gap-3">
+            <input type="time" value={biz.last_booking_time || ''} onChange={e => set('last_booking_time', e.target.value)}
+              className="bg-[#141618] border border-[rgba(255,255,255,0.08)] rounded-lg px-2.5 py-1.5 text-sm text-[#E8EAED] outline-none focus:border-[#4D9EFF]" />
+            <span className="text-xs text-[#5A6370]">Latest slot you accept (e.g. close at 5 PM, last booking 4:30 PM)</span>
+          </div>
+        </div>
       </Card>
-
-      {/* Location */}
       <Card className="p-5 mb-4">
         <div className="flex items-center gap-2 mb-4 pb-3 border-b border-[rgba(255,255,255,0.06)]"><MapPin size={15} className="text-[#FFA040]" /><h2 className="text-sm font-semibold text-[#E8EAED]">Location</h2></div>
         <div className="space-y-4">

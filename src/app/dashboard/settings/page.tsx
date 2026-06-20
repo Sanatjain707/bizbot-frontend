@@ -22,6 +22,10 @@ export default function SettingsPage() {
     const { error } = await api.updateBusiness(biz)
     showToast(error ? 'Failed to save' : 'Settings saved', error ? 'error' : 'success')
     setSaving(false)
+    if (!error) {
+      // Tell the layout/sidebar to re-fetch so the new name & details show immediately
+      if (typeof window !== 'undefined') window.dispatchEvent(new Event('biz-updated'))
+    }
   }
 
   if (loading) return <div className="text-center py-20 text-[#5A6370] text-sm">Loading settings...</div>
@@ -51,6 +55,7 @@ export default function SettingsPage() {
         <div className="flex items-center gap-2 mb-4 pb-3 border-b border-[rgba(255,255,255,0.06)]"><CreditCard size={15} className="text-[#FFA040]" /><h2 className="text-sm font-semibold text-[#E8EAED]">Payment</h2></div>
         <div className="space-y-4">
           <Input label="UPI ID" value={biz.upi_id || ''} onChange={(e: any) => set('upi_id', e.target.value)} placeholder="yourname@upi" hint="Shared when customers ask how to pay" />
+          <Input label="Payment reminder after (days)" type="number" value={biz.payment_reminder_days ?? 3} onChange={(e: any) => set('payment_reminder_days', e.target.value)} placeholder="3" hint="Send a polite payment reminder this many days after it's due" />
         </div>
       </Card>
 

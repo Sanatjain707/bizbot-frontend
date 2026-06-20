@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
 import { Card, Button, Badge, Modal, Input, StatCard, EmptyState, Skeleton, showToast, Avatar } from '@/components/ui'
-import { Users, Plus, Send, Search, X, Phone, Calendar, Clock } from 'lucide-react'
+import { Users, Plus, Send, Search, X, Phone, Calendar, Clock, Trash2 } from 'lucide-react'
 
 function daysSince(d: string) { return Math.floor((Date.now() - new Date(d).getTime()) / 86400000) }
 function churn(days: number) { return days >= 21 ? { v: 'red', l: 'At risk' } : days >= 14 ? { v: 'amber', l: 'Inactive' } : { v: 'green', l: 'Active' } }
@@ -16,9 +16,11 @@ export default function CustomersPage() {
   const [selected,  setSelected]  = useState<any>(null)
   const [showForm,  setShowForm]  = useState(false)
   const [saving,    setSaving]    = useState(false)
+  const [confirmDel, setConfirmDel] = useState<any>(null)
+  const [deleting,  setDeleting]  = useState(false)
   const [form, setForm] = useState({ name: '', phone: '' })
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load(); const t = setInterval(load, 15000); return () => clearInterval(t) }, [])
   async function load() {
     const { data } = await api.getCustomers()
     if (data) setCustomers(data)
@@ -32,10 +34,26 @@ export default function CustomersPage() {
     setSending(null)
   }
 
+  async function doDelete() {
+    if (!confirmDel) return
+    setDeleting(true)
+    const { error } = await api.deleteCustomer(confirmDel.id)
+    setDeleting(false)
+    if (error) showToast(error, 'error')
+    else {
+      showToast('Customer deleted', 'success')
+      setCustomers(prev => prev.filter(c => c.id !== confirmDel.id))
+      setConfirmDel(null)
+      if (selected?.id === confirmDel.id) setSelected(null)
+    }
+  }
+
   async function create() {
     if (!form.name) { showToast('Enter a name', 'error'); return }
+    const phone = (form.phone || '').replace(/\D/g, '')
+    if (phone.length < 10) { showToast('Enter a valid 10-digit phone number', 'error'); return }
     setSaving(true)
-    const { error } = await api.createCustomer({ name: form.name, phone: form.phone || `manual-${Date.now()}` })
+    const { error } = await api.createCustomer({ name: form.name, phone })
     if (error) showToast('Failed', 'error')
     else { showToast('Customer added', 'success'); setShowForm(false); setForm({ name: '', phone: '' }); load() }
     setSaving(false)
@@ -91,8 +109,11 @@ export default function CustomersPage() {
                     <td className="px-4 py-3 text-sm text-[#9AA0AB]">{c.total_visits || 0}</td>
                     <td className="px-4 py-3"><Badge variant={ch.v}>{ch.l}</Badge></td>
                     <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
-                      {days >= 14 && !c.reengagement_sent && <Button size="xs" variant="ghost" icon={Send} onClick={() => reengage(c.id, c.name || c.phone)} loading={sending === c.id}>Re-engage</Button>}
-                      {c.reengagement_sent && <span className="text-xs text-[#5A6370]">Sent ✓</span>}
+                      <div className="flex items-center gap-1.5">
+                        {days >= 14 && !c.reengagement_sent && <Button size="xs" variant="ghost" icon={Send} onClick={() => reengage(c.id, c.name || c.phone)} loading={sending === c.id}>Re-engage</Button>}
+                        {c.reengagement_sent && <span className="text-xs text-[#5A6370]">Sent ✓</span>}
+                        <button onClick={() => setConfirmDel(c)} className="p-1.5 rounded-lg text-[#5A6370] hover:text-[#FF5A5A] hover:bg-[rgba(255,90,90,0.08)] transition-all" title="Delete customer"><Trash2 size={14} /></button>
+                      </div>
                     </td>
                   </tr>
                 )
@@ -130,10 +151,19 @@ export default function CustomersPage() {
         </div>
       )}
 
+      <Modal open={!!confirmDel} onClose={() => setConfirmDel(null)} title="Delete customer?">
+        <p className="text-sm text-[#9AA0AB] mb-1">This will permanently remove <span className="text-[#E8EAED] font-medium">{confirmDel?.name || confirmDel?.phone}</span> and all their conversations, appointments, and payments.</p>
+        <p className="text-sm text-[#FF5A5A] mb-5">This cannot be undone.</p>
+        <div className="flex gap-3 justify-end">
+          <Button variant="secondary" onClick={() => setConfirmDel(null)}>Cancel</Button>
+          <Button variant="danger" icon={Trash2} loading={deleting} onClick={doDelete}>Delete</Button>
+        </div>
+      </Modal>
+
       <Modal open={showForm} onClose={() => setShowForm(false)} title="Add Customer">
         <div className="space-y-4">
           <Input label="Name *" placeholder="Priya Sharma" value={form.name} onChange={(e: any) => setForm(p => ({ ...p, name: e.target.value }))} />
-          <Input label="Phone" placeholder="9876543210" value={form.phone} onChange={(e: any) => setForm(p => ({ ...p, phone: e.target.value }))} />
+          <Input label="Phone *" placeholder="9876543210" value={form.phone} onChange={(e: any) => setForm(p => ({ ...p, phone: e.target.value }))} />
         </div>
         <div className="flex gap-2 mt-5"><Button onClick={create} loading={saving}>Add</Button><Button variant="ghost" onClick={() => setShowForm(false)}>Cancel</Button></div>
       </Modal>

@@ -14,7 +14,7 @@ export default function PaymentsPage() {
   const [saving,  setSaving]  = useState(false)
   const [form, setForm] = useState({ customer_name: '', customer_phone: '', amount: '', description: '', due_date: '' })
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load(); const t = setInterval(load, 15000); return () => clearInterval(t) }, [])
 
   async function load() {
     const [p, pd] = await Promise.all([api.getPendingPayments(), api.getPaidPayments()])

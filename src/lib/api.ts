@@ -7,6 +7,7 @@ async function call<T>(path: string, opts: RequestInit = {}): Promise<{ data: T 
       ...opts,
       headers: {
         'Content-Type': 'application/json',
+        'ngrok-skip-browser-warning': 'true',
         'x-business-id': BIZ_ID(),
         ...(opts.headers || {}),
       },
@@ -54,6 +55,7 @@ export const api = {
   getCustomers:            ()                       => call<any[]>('/api/dashboard/customers'),
   getCustomerDetail:       (id: string)             => call<any>(`/api/dashboard/customers/${id}`),
   createCustomer:          (d: any)                 => call('/api/dashboard/customers/create', { method: 'POST', body: JSON.stringify(d) }),
+  deleteCustomer:          (id: string)             => call(`/api/dashboard/customers/${id}`, { method: 'DELETE' }),
   sendReengagement:        (id: string)             => call(`/api/dashboard/customers/${id}/reengage`, { method: 'POST' }),
 
   // Business

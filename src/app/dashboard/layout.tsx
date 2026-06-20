@@ -12,6 +12,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [biz, setBiz]     = useState<any>({})
 
   useEffect(() => {
+    async function loadBiz() {
+      const { data } = await api.getBusiness()
+      if (data?.id) {
+        localStorage.setItem('bizId', data.id)
+        const active = data.plan_expires_at ? new Date(data.plan_expires_at) > new Date() : false
+        setBiz({ ...data, planActive: active })
+        return true
+      }
+      return false
+    }
+
     async function init() {
       const user = await getCurrentUser()
       if (!user) { router.replace('/login'); return }
@@ -22,17 +33,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         if (dest === '/onboarding') { router.replace('/onboarding'); return }
       }
 
-      const { data } = await api.getBusiness()
-      if (data?.id) {
-        localStorage.setItem('bizId', data.id)
-        const active = data.plan_expires_at ? new Date(data.plan_expires_at) > new Date() : false
-        setBiz({ ...data, planActive: active })
-      } else {
-        router.replace('/onboarding'); return
-      }
+      const ok = await loadBiz()
+      if (!ok) { router.replace('/onboarding'); return }
       setReady(true)
     }
     init()
+
+    // Re-fetch business when settings are saved (updates name/type in sidebar instantly)
+    const onUpdate = () => loadBiz()
+    if (typeof window !== 'undefined') window.addEventListener('biz-updated', onUpdate)
+    return () => { if (typeof window !== 'undefined') window.removeEventListener('biz-updated', onUpdate) }
   }, [router])
 
   if (!ready) return (
