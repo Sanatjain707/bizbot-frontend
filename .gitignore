@@ -3,6 +3,7 @@ node_modules/
 
 # Next.js build
 .next/
+.next-prod/
 out/
 
 # Environment variables — NEVER commit these
