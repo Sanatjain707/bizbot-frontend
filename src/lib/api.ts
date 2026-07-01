@@ -1,5 +1,5 @@
 const BASE   = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
-const BIZ_ID = () => (typeof window !== 'undefined' ? localStorage.getItem('bizId') || process.env.NEXT_PUBLIC_BUSINESS_ID || '' : '')
+const BIZ_ID = () => (typeof window !== 'undefined' ? localStorage.getItem('bizId') || '' : '')
 
 async function call<T>(path: string, opts: RequestInit = {}): Promise<{ data: T | null; error: string | null }> {
   try {
