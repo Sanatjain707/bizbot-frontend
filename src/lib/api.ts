@@ -74,4 +74,25 @@ export const api = {
   getCampaigns:            ()                       => call<any[]>('/api/broadcast/campaigns'),
   createCampaign:          (d: any)                 => call('/api/broadcast/campaigns', { method: 'POST', body: JSON.stringify(d) }),
   sendCampaign:            (id: string)             => call(`/api/broadcast/campaigns/${id}/send`, { method: 'POST' }),
+
+  // Analytics
+  getAnalytics:            (q: string)              => call<any>(`/api/analytics?${q}`),
+}
+
+// CSV export: fetch with the business header, then trigger a browser download.
+// (A plain <a href> can't send x-business-id, so we blob it here.)
+export async function downloadAnalyticsCsv(q: string) {
+  const res = await fetch(`${BASE}/api/analytics/export?${q}`, {
+    headers: { 'ngrok-skip-browser-warning': 'true', 'x-business-id': BIZ_ID() },
+  })
+  if (!res.ok) throw new Error(`Export failed (HTTP ${res.status})`)
+  const blob = await res.blob()
+  const url  = URL.createObjectURL(blob)
+  const cd   = res.headers.get('Content-Disposition') || ''
+  const match = cd.match(/filename="?([^"]+)"?/)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = match ? match[1] : 'bizbot-analytics.csv'
+  document.body.appendChild(a); a.click(); a.remove()
+  URL.revokeObjectURL(url)
 }

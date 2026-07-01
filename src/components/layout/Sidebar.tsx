@@ -5,11 +5,12 @@ import { signOut } from '@/lib/supabase'
 import { Avatar } from '@/components/ui'
 import {
   LayoutDashboard, MessageSquare, Calendar, CreditCard,
-  Users, Settings, LogOut, Zap, Sparkles, Megaphone, FileText
+  Users, Settings, LogOut, Zap, Sparkles, Megaphone, FileText, BarChart3
 } from 'lucide-react'
 
 const NAV = [
   { href: '/dashboard',              label: 'Overview',      icon: LayoutDashboard },
+  { href: '/dashboard/analytics',    label: 'Analytics',     icon: BarChart3 },
   { href: '/dashboard/conversations',label: 'Conversations', icon: MessageSquare, badge: true },
   { href: '/dashboard/appointments', label: 'Appointments',  icon: Calendar },
   { href: '/dashboard/payments',     label: 'Payments',      icon: CreditCard },
