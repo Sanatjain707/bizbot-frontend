@@ -16,7 +16,16 @@ export default function AppointmentsPage() {
   const [showForm,setShowForm]= useState(false)
   const [saving,  setSaving]  = useState(false)
   const [calMonth,setCalMonth]= useState(new Date())
+  const [confirmRemind,setConfirmRemind] = useState(false)
+  const [remindingAll,setRemindingAll]   = useState(false)
   const [form, setForm] = useState({ customer_name: '', customer_phone: '', service: '', appointment_date: '', appointment_time: '', notes: '' })
+
+  // How many distinct customers have a confirmed appointment today (UTC, matching backend)
+  const todayUTC = new Date().toISOString().split('T')[0]
+  const remindCount = new Set(
+    appts.filter(a => a.status === 'confirmed' && (a.appointment_time || '').slice(0, 10) === todayUTC)
+         .map(a => a.customer_id || a.customers?.phone)
+  ).size
 
   useEffect(() => { load(); const t = setInterval(load, 15000); return () => clearInterval(t) }, [])
   async function load() { const { data } = await api.getAllAppointments(); if (data) setAppts(data); setLoading(false) }
@@ -29,6 +38,23 @@ export default function AppointmentsPage() {
   async function sendReminder(id: string) {
     const { error } = await api.sendAppointmentReminder(id)
     showToast(error ? 'Failed to send' : 'Reminder sent on WhatsApp', error ? 'error' : 'success')
+  }
+  async function remindAll() {
+    setRemindingAll(true)
+    const { data, error } = await api.remindAllToday()
+    setRemindingAll(false)
+    setConfirmRemind(false)
+    if (error) { showToast(error, 'error'); return }
+    const { total, sent, windowFailed, otherFailed } = data || {}
+    if (!total) { showToast('No confirmed appointments today', 'info'); return }
+    // Be honest: reminders that silently failed the 24h-window rule are called out
+    let msg = `Reminded ${sent} customer${sent === 1 ? '' : 's'}`
+    const issues: string[] = []
+    if (windowFailed) issues.push(`${windowFailed} couldn't be reached (outside WhatsApp's 24-hour window)`)
+    if (otherFailed)  issues.push(`${otherFailed} failed to send`)
+    if (issues.length) msg += ` · ${issues.join(' · ')}`
+    showToast(msg, sent > 0 ? 'success' : (windowFailed ? 'warning' : 'error'))
+    load()
   }
   async function create() {
     if (!form.customer_name || !form.service || !form.appointment_date || !form.appointment_time) { showToast('Fill all required fields', 'error'); return }
@@ -67,6 +93,7 @@ export default function AppointmentsPage() {
             <button onClick={() => setView('list')} className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all ${view === 'list' ? 'bg-[#1A1D20] text-[#E8EAED]' : 'text-[#5A6370]'}`}><List size={13} /> List</button>
             <button onClick={() => setView('calendar')} className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all ${view === 'calendar' ? 'bg-[#1A1D20] text-[#E8EAED]' : 'text-[#5A6370]'}`}><CalendarDays size={13} /> Calendar</button>
           </div>
+          <Button variant="secondary" icon={Bell} onClick={() => setConfirmRemind(true)}>Remind all</Button>
           <Button icon={Plus} onClick={() => setShowForm(true)}>Add</Button>
         </div>
       </div>
@@ -134,6 +161,21 @@ export default function AppointmentsPage() {
           <Input label="Time *" type="time" value={form.appointment_time} onChange={(e: any) => setForm(p => ({ ...p, appointment_time: e.target.value }))} />
         </div>
         <div className="flex gap-2 mt-5"><Button onClick={create} loading={saving}>Save Appointment</Button><Button variant="ghost" onClick={() => setShowForm(false)}>Cancel</Button></div>
+      </Modal>
+
+      <Modal open={confirmRemind} onClose={() => setConfirmRemind(false)} title="Remind today's customers?">
+        {remindCount === 0 ? (
+          <>
+            <p className="text-sm text-[#9AA0AB]">No confirmed appointments for today yet.</p>
+            <div className="flex gap-2 mt-5"><Button variant="ghost" onClick={() => setConfirmRemind(false)}>Close</Button></div>
+          </>
+        ) : (
+          <>
+            <p className="text-sm text-[#9AA0AB] mb-1.5">Send a WhatsApp reminder to the <span className="text-[#E8EAED] font-medium">{remindCount} customer{remindCount === 1 ? '' : 's'}</span> with a confirmed appointment today.</p>
+            <p className="text-xs text-[#5A6370]">WhatsApp only delivers to customers who messaged you in the last 24 hours. Anyone outside that window won't receive it — we'll tell you exactly how many.</p>
+            <div className="flex gap-2 mt-5"><Button icon={Bell} onClick={remindAll} loading={remindingAll}>Send reminders</Button><Button variant="ghost" onClick={() => setConfirmRemind(false)}>Cancel</Button></div>
+          </>
+        )}
       </Modal>
     </div>
   )

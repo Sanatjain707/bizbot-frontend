@@ -37,6 +37,7 @@ export const api = {
   updateAppointment:       (id: string, d: any)     => call(`/api/dashboard/appointments/${id}`, { method: 'PATCH', body: JSON.stringify(d) }),
   updateAppointmentStatus: (id: string, status: string) => call(`/api/dashboard/appointments/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
   sendAppointmentReminder: (id: string)             => call(`/api/dashboard/appointments/${id}/remind`, { method: 'POST' }),
+  remindAllToday:          ()                       => call<any>('/api/dashboard/appointments/remind-all', { method: 'POST' }),
 
   // Conversations
   getConversations:        ()                       => call<any[]>('/api/dashboard/conversations'),
