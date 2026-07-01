@@ -56,6 +56,7 @@ export const api = {
   getCustomers:            ()                       => call<any[]>('/api/dashboard/customers'),
   getCustomerDetail:       (id: string)             => call<any>(`/api/dashboard/customers/${id}`),
   createCustomer:          (d: any)                 => call('/api/dashboard/customers/create', { method: 'POST', body: JSON.stringify(d) }),
+  importCustomers:         (customers: any[])       => call<any>('/api/dashboard/customers/import', { method: 'POST', body: JSON.stringify({ customers }) }),
   deleteCustomer:          (id: string)             => call(`/api/dashboard/customers/${id}`, { method: 'DELETE' }),
   sendReengagement:        (id: string)             => call(`/api/dashboard/customers/${id}/reengage`, { method: 'POST' }),
 

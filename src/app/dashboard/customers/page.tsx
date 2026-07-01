@@ -2,7 +2,8 @@
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
 import { Card, Button, Badge, Modal, Input, StatCard, EmptyState, Skeleton, showToast, Avatar } from '@/components/ui'
-import { Users, Plus, Send, Search, X, Phone, Calendar, Clock, Trash2 } from 'lucide-react'
+import ImportCustomersModal from '@/components/dashboard/ImportCustomersModal'
+import { Users, Plus, Send, Search, X, Phone, Calendar, Clock, Trash2, Upload } from 'lucide-react'
 
 function daysSince(d: string) { return Math.floor((Date.now() - new Date(d).getTime()) / 86400000) }
 function churn(days: number) { return days >= 21 ? { v: 'red', l: 'At risk' } : days >= 14 ? { v: 'amber', l: 'Inactive' } : { v: 'green', l: 'Active' } }
@@ -18,6 +19,7 @@ export default function CustomersPage() {
   const [saving,    setSaving]    = useState(false)
   const [confirmDel, setConfirmDel] = useState<any>(null)
   const [deleting,  setDeleting]  = useState(false)
+  const [showImport, setShowImport] = useState(false)
   const [form, setForm] = useState({ name: '', phone: '' })
 
   useEffect(() => { load(); const t = setInterval(load, 15000); return () => clearInterval(t) }, [])
@@ -70,7 +72,10 @@ export default function CustomersPage() {
     <div className="animate-up">
       <div className="flex items-center justify-between mb-6">
         <div><h1 className="text-xl font-bold text-[#E8EAED] mb-1 font-[Syne]">Customers</h1><p className="text-sm text-[#5A6370]">Everyone who contacted you on WhatsApp</p></div>
-        <Button icon={Plus} onClick={() => setShowForm(true)}>Add Customer</Button>
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" icon={Upload} onClick={() => setShowImport(true)}>Import</Button>
+          <Button icon={Plus} onClick={() => setShowForm(true)}>Add Customer</Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-3 gap-4 mb-6">
@@ -167,6 +172,8 @@ export default function CustomersPage() {
         </div>
         <div className="flex gap-2 mt-5"><Button onClick={create} loading={saving}>Add</Button><Button variant="ghost" onClick={() => setShowForm(false)}>Cancel</Button></div>
       </Modal>
+
+      <ImportCustomersModal open={showImport} onClose={() => setShowImport(false)} onImported={load} />
     </div>
   )
 }
