@@ -1,5 +1,36 @@
 const BASE   = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
-const BIZ_ID = () => (typeof window !== 'undefined' ? localStorage.getItem('bizId') || '' : '')
+
+// bizId is normally set by the dashboard layout after it resolves the business
+// via /api/business/by-user. But business-scoped calls can fire before that
+// finishes (e.g. the overview page on mount), which would send an empty
+// x-business-id and 400. So resolve it here as a fallback — via the logged-in
+// user, NEVER via an env-var default (that caused wrong-business bugs).
+let pendingBizId: Promise<string> | null = null
+async function resolveBizId(): Promise<string> {
+  if (typeof window === 'undefined') return ''
+  const cached = localStorage.getItem('bizId')
+  if (cached) return cached
+  // Coalesce concurrent misses (e.g. the overview's parallel calls) into one lookup
+  if (!pendingBizId) {
+    pendingBizId = (async () => {
+      try {
+        const { getCurrentUser } = await import('@/lib/supabase')
+        const user = await getCurrentUser()
+        if (!user) return ''
+        const params = new URLSearchParams()
+        if (user.id) params.set('auth_user_id', user.id)
+        if (user.email) params.set('email', user.email)
+        const res = await fetch(`${BASE}/api/business/by-user?${params.toString()}`, {
+          headers: { 'ngrok-skip-browser-warning': 'true' },
+        })
+        const { business } = await res.json()
+        if (business?.id) { localStorage.setItem('bizId', business.id); return business.id }
+      } catch (_) {}
+      return ''
+    })().finally(() => { pendingBizId = null })
+  }
+  return pendingBizId
+}
 
 async function call<T>(path: string, opts: RequestInit = {}): Promise<{ data: T | null; error: string | null }> {
   try {
@@ -8,7 +39,7 @@ async function call<T>(path: string, opts: RequestInit = {}): Promise<{ data: T 
       headers: {
         'Content-Type': 'application/json',
         'ngrok-skip-browser-warning': 'true',
-        'x-business-id': BIZ_ID(),
+        'x-business-id': await resolveBizId(),
         ...(opts.headers || {}),
       },
     })
@@ -84,7 +115,7 @@ export const api = {
 // (A plain <a href> can't send x-business-id, so we blob it here.)
 export async function downloadAnalyticsCsv(q: string) {
   const res = await fetch(`${BASE}/api/analytics/export?${q}`, {
-    headers: { 'ngrok-skip-browser-warning': 'true', 'x-business-id': BIZ_ID() },
+    headers: { 'ngrok-skip-browser-warning': 'true', 'x-business-id': await resolveBizId() },
   })
   if (!res.ok) throw new Error(`Export failed (HTTP ${res.status})`)
   const blob = await res.blob()
