@@ -109,7 +109,16 @@ export const api = {
   // Backend switched to `{ conversations, nextCursor }` and `{ messages, nextCursor }`;
   // unwrap so existing .map/.filter consumers keep working.
   getConversations:        async ()                 => unwrap<any>(await call<any>('/api/dashboard/conversations'), 'conversations'),
-  getMessages:             async (cid: string)      => unwrap<any>(await call<any>(`/api/dashboard/conversations/${cid}/messages`), 'messages'),
+  // Messages come back newest-first from the paginated endpoint (cursor
+  // pagination loads OLDER messages, so DESC is correct on the wire).
+  // Reverse here so the UI renders them oldest→newest (WhatsApp convention:
+  // scroll down = newer). Non-mutating slice().reverse() to keep the raw
+  // array immutable if a future caller wants both orderings.
+  getMessages:             async (cid: string) => {
+    const r = unwrap<any>(await call<any>(`/api/dashboard/conversations/${cid}/messages`), 'messages')
+    if (r.data) r.data = r.data.slice().reverse()
+    return r
+  },
   sendManualMessage:       (cid: string, text: string) => call(`/api/dashboard/conversations/${cid}/send`, { method: 'POST', body: JSON.stringify({ text }) }),
   toggleAI:                (cid: string, enabled: boolean) => call(`/api/dashboard/conversations/${cid}/ai`, { method: 'PATCH', body: JSON.stringify({ ai_enabled: enabled }) }),
 

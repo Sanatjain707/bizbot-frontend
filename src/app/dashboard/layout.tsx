@@ -67,7 +67,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         if (user.id) params.set('auth_user_id', user.id)
         if (user.email) params.set('email', user.email)
         const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
-        const res = await fetch(`${base}/api/business/by-user?${params.toString()}`)
+        // AbortController timeout — without it, an unreachable backend
+        // hangs the fetch (and therefore the whole layout) indefinitely.
+        // 10s is longer than any real by-user call but short enough that
+        // a misconfigured NEXT_PUBLIC_API_URL surfaces quickly.
+        const ac = new AbortController()
+        const timeout = setTimeout(() => ac.abort(), 10_000)
+        let res: Response
+        try {
+          res = await fetch(`${base}/api/business/by-user?${params.toString()}`, { signal: ac.signal })
+        } finally {
+          clearTimeout(timeout)
+        }
         if (!res.ok) throw new Error(`by-user ${res.status}`)
         const { business } = await res.json()
         if (cancelled) return
