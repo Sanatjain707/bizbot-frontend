@@ -82,24 +82,38 @@ export async function getCurrentUser() {
 // SINGLE SOURCE OF TRUTH for post-auth routing.
 // Given a logged-in user, decides: do they have a business?
 //   → yes: store bizId, return '/dashboard'
-//   → no:  return '/onboarding'
+//   → no (CONFIRMED empty lookup): return '/onboarding'
+//   → lookup didn't complete: return '/dashboard' (the layout re-resolves) —
+//     never dump an existing user into onboarding on a transient/early failure.
 // Returns '/login' if there's no user at all.
 export async function destinationForUser(user?: any) {
   const u = user || (await getCurrentUser())
   if (!u) return '/login'
-  try {
-    const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
-    const params = new URLSearchParams()
-    if (u.id) params.set('auth_user_id', u.id)
-    if (u.email) params.set('email', u.email)
-    const res = await fetch(`${base}/api/business/by-user?${params.toString()}`)
-    const { business } = await res.json()
-    if (business?.id) {
-      if (typeof window !== 'undefined') localStorage.setItem('bizId', business.id)
-      return '/dashboard'
+  const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
+  const params = new URLSearchParams()
+  if (u.id) params.set('auth_user_id', u.id)
+  if (u.email) params.set('email', u.email)
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const res = await fetch(`${base}/api/business/by-user?${params.toString()}`)
+      if (!res.ok) throw new Error(`by-user ${res.status}`)
+      const { business } = await res.json()
+      if (business?.id) {
+        if (typeof window !== 'undefined') localStorage.setItem('bizId', business.id)
+        return '/dashboard'
+      }
+      return '/onboarding'   // definitive: this identity truly has no business
+    } catch (_) {
+      // Transient/early failure — brief pause, then retry once
+      if (attempt === 0) await new Promise(r => setTimeout(r, 300))
     }
-  } catch (_) {}
-  return '/onboarding'
+  }
+  // Couldn't confirm after retry — send to dashboard, where the layout's own
+  // by-user resolution runs authoritatively (and routes to onboarding only if
+  // it definitively confirms no business). Never onboard on an unconfirmed lookup.
+  console.warn('[destinationForUser] by-user lookup unconfirmed after retry — routing to /dashboard (layout will re-resolve) instead of /onboarding')
+  return '/dashboard'
 }
 
 export function saveSession(session: any) {
