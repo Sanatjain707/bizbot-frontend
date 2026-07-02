@@ -79,6 +79,26 @@ export async function getCurrentUser() {
   return session?.user || null
 }
 
+// Returns the current Supabase JWT (access_token) if the user is logged in.
+// Backend routes gated by AUTH_REQUIRED expect this in Authorization: Bearer.
+// Falls back to the localStorage mirror when Supabase is briefly unavailable
+// (e.g. right after page load before the session hydrates).
+export async function getAccessToken(): Promise<string | null> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.access_token) return session.access_token
+  } catch (_) { /* fall through to mirror */ }
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = localStorage.getItem('bizbot-session')
+    if (!raw) return null
+    const s = JSON.parse(raw)
+    const now = Math.floor(Date.now() / 1000)
+    if (s.expires_at && s.expires_at < now) return null
+    return s.access_token || null
+  } catch { return null }
+}
+
 // SINGLE SOURCE OF TRUTH for post-auth routing.
 // Given a logged-in user, decides: do they have a business?
 //   → yes: store bizId, return '/dashboard'
@@ -127,7 +147,14 @@ export function saveSession(session: any) {
 }
 
 export async function signOut() {
-  localStorage.removeItem('bizbot-session')
-  localStorage.removeItem('bizId')
+  // Clear everything user-scoped so a subsequent login on the same browser
+  // doesn't inherit stale state. The onboarding-redirect flag was the
+  // trickiest — leaving it stuck new users on the dashboard forever.
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('bizbot-session')
+    localStorage.removeItem('bizId')
+    localStorage.removeItem('bizbot-last-activity')
+    sessionStorage.removeItem('onboarding-redirect')
+  }
   await supabase.auth.signOut()
 }

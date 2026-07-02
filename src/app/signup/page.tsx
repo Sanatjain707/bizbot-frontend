@@ -14,7 +14,11 @@ export default function SignupPage() {
 
   // Only skip the form if they're already fully set up (have a business).
   useEffect(() => {
-    destinationForUser().then(dest => { if (dest === '/dashboard') router.replace('/dashboard') })
+    let cancelled = false
+    destinationForUser().then(dest => {
+      if (!cancelled && dest === '/dashboard') router.replace('/dashboard')
+    })
+    return () => { cancelled = true }
   }, [])
 
   async function signup() {

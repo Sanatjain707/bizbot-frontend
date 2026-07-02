@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
 import { parseInput, type Parsed } from '@/lib/parseCustomers'
 import { Modal, Button, Select, showToast } from '@/components/ui'
@@ -18,6 +18,11 @@ export default function ImportCustomersModal({ open, onClose, onImported }: any)
 
   function reset()  { setStep('input'); setTab('upload'); setPaste(''); setParsed(null); setResult(null) }
   function close()  { reset(); onClose() }
+
+  // Re-open should always start at the input step. Without this, a modal that
+  // was closed via the backdrop (which doesn't call reset()) reopens on the
+  // previous `'result'` state — the user sees stale numbers from last import.
+  useEffect(() => { if (open) reset() }, [open])
 
   function handleText(text: string) {
     const p = parseInput(text)

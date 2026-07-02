@@ -44,12 +44,20 @@ export default function SettingsPage() {
 
   async function save() {
     setSaving(true)
-    const { error } = await api.updateBusiness(biz)
+    // Strip client-only derived fields the layout injects (planActive, etc.)
+    // before POSTing — the backend patch handler rejects unknown columns.
+    // Also coerce numeric inputs from strings (payment_reminder_days is bound
+    // to <input type="number">, which still returns a string).
+    const { planActive, id, created_at, plan_expires_at, razorpay_sub_id, ...payload } = biz as any
+    if (payload.payment_reminder_days != null && payload.payment_reminder_days !== '') {
+      const n = Number(payload.payment_reminder_days)
+      payload.payment_reminder_days = Number.isFinite(n) && n > 0 ? Math.floor(n) : undefined
+    }
+    const { error } = await api.updateBusiness(payload)
     showToast(error ? 'Failed to save' : 'Settings saved', error ? 'error' : 'success')
     setSaving(false)
     if (!error) {
-      // Tell the layout/sidebar to re-fetch so the new name & details show immediately
-      if (typeof window !== 'undefined') window.dispatchEvent(new Event('biz-updated'))
+      window.dispatchEvent(new Event('biz-updated'))
     }
   }
 

@@ -53,7 +53,13 @@ export default function OnboardingPage() {
   }
 
   async function finish() {
+    // Guard against Enter/re-click double-submit while the network is in flight.
+    if (saving) return
     setSaving(true); setErr('')
+    // Clear any stale bizId from a previous account before creating a fresh one.
+    // Otherwise a leftover value can survive the /dashboard redirect and route
+    // this new user into someone else's business.
+    localStorage.removeItem('bizId')
     try {
       const res = await fetch(`${BASE}/api/business/create`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -68,9 +74,9 @@ export default function OnboardingPage() {
       if (result?.id) {
         localStorage.setItem('bizId', result.id)
         router.replace('/dashboard')
-      } else {
-        setErr(result.error || 'Could not create your business')
+        return  // keep saving=true through the redirect so the button stays disabled
       }
+      setErr(result.error || 'Could not create your business')
     } catch (e: any) {
       setErr(e.message || 'Something went wrong')
     }

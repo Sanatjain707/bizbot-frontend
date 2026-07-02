@@ -5,13 +5,14 @@ import { signOut } from '@/lib/supabase'
 import { Avatar } from '@/components/ui'
 import {
   LayoutDashboard, MessageSquare, Calendar, CreditCard,
-  Users, Settings, LogOut, Zap, Sparkles, Megaphone, FileText, BarChart3
+  Users, Settings, LogOut, Zap, Sparkles, Megaphone, FileText, BarChart3, AlertTriangle,
 } from 'lucide-react'
 
 const NAV = [
   { href: '/dashboard',              label: 'Overview',      icon: LayoutDashboard },
   { href: '/dashboard/analytics',    label: 'Analytics',     icon: BarChart3 },
-  { href: '/dashboard/conversations',label: 'Conversations', icon: MessageSquare, badge: true },
+  { href: '/dashboard/conversations',label: 'Conversations', icon: MessageSquare, badge: 'unread' },
+  { href: '/dashboard/alerts',       label: 'Alerts',        icon: AlertTriangle,  badge: 'openAlerts' },
   { href: '/dashboard/appointments', label: 'Appointments',  icon: Calendar },
   { href: '/dashboard/payments',     label: 'Payments',      icon: CreditCard },
   { href: '/dashboard/customers',    label: 'Customers',     icon: Users },
@@ -21,9 +22,10 @@ const NAV = [
   { href: '/dashboard/settings',     label: 'Settings',      icon: Settings },
 ]
 
-export default function Sidebar({ bizName, bizType, plan, planActive, unread = 0 }: any) {
+export default function Sidebar({ bizName, bizType, plan, planActive, unread = 0, openAlerts = 0 }: any) {
   const path   = usePathname()
   const router = useRouter()
+  const badges: Record<string, number> = { unread, openAlerts }
 
   async function handleSignOut() {
     await signOut()
@@ -45,6 +47,11 @@ export default function Sidebar({ bizName, bizType, plan, planActive, unread = 0
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {NAV.map(({ href, label, icon: Icon, badge }) => {
           const active = path === href
+          const count = badge ? badges[badge] || 0 : 0
+          // Alerts get an amber pill (attention needed), other badges stay green.
+          const pillClass = badge === 'openAlerts'
+            ? 'bg-[#FFA040] text-black'
+            : 'bg-[#00C57A] text-black'
           return (
             <Link key={href} href={href}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
@@ -52,8 +59,8 @@ export default function Sidebar({ bizName, bizType, plan, planActive, unread = 0
               }`}>
               <Icon size={16} />
               <span className="flex-1">{label}</span>
-              {badge && unread > 0 && (
-                <span className="w-5 h-5 rounded-full bg-[#00C57A] text-black text-xs font-bold flex items-center justify-center">{unread}</span>
+              {count > 0 && (
+                <span className={`min-w-[20px] h-5 px-1.5 rounded-full text-xs font-bold flex items-center justify-center ${pillClass}`}>{count}</span>
               )}
             </Link>
           )

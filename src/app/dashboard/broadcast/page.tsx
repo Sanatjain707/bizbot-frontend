@@ -4,6 +4,7 @@ import { api } from '@/lib/api'
 import { Card, Button, Badge, Modal, Input, Select, EmptyState, Skeleton, showToast } from '@/components/ui'
 import LockGate from '@/components/dashboard/LockGate'
 import { Plus, Megaphone, Send, Users, IndianRupee, Eye, MessageSquare, CheckCheck, FileText } from 'lucide-react'
+import { scheduledLocalToUtcISO } from '@/lib/dateTime'
 
 const SEGMENTS = [
   { value: 'all',    label: 'All customers' },
@@ -30,12 +31,18 @@ export default function BroadcastPage() {
     setLoading(false)
   }
 
-  // Recompute audience whenever segment changes
+  // Recompute audience whenever segment changes. Debounce so typing a service
+  // name doesn't fire one request per keystroke (~6 for "Facial").
   useEffect(() => {
     if (!modal) return
-    api.getAudience(form.segment, form.segment_value).then(({ data }) => {
-      if (data) setAudience(data)
-    })
+    const timer = setTimeout(() => {
+      let cancelled = false
+      api.getAudience(form.segment, form.segment_value).then(({ data }) => {
+        if (!cancelled && data) setAudience(data)
+      })
+      return () => { cancelled = true }
+    }, 350)
+    return () => clearTimeout(timer)
   }, [form.segment, form.segment_value, modal])
 
   const approvedTemplates = templates.filter(t => t.status === 'APPROVED')
@@ -44,7 +51,14 @@ export default function BroadcastPage() {
     if (!form.name.trim()) { showToast('Name your campaign', 'error'); return }
     if (!form.template_id) { showToast('Pick an approved template', 'error'); return }
     setSaving(true)
-    const { data, error } = await api.createCampaign(form)
+    // Anchor the picked schedule to IST regardless of the browser's timezone —
+    // the backend interprets scheduled_at as IST for consistency with all
+    // other business timestamps.
+    const payload = {
+      ...form,
+      scheduled_at: form.scheduled_at ? scheduledLocalToUtcISO(form.scheduled_at) : '',
+    }
+    const { data, error } = await api.createCampaign(payload)
     if (error || !data) { showToast(error || 'Failed', 'error'); setSaving(false); return }
     if (thenSend) {
       const { error: sErr } = await api.sendCampaign((data as any).id)

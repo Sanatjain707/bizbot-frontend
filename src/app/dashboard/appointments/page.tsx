@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
 import { Card, Button, Badge, Modal, Input, EmptyState, Skeleton, showToast, Avatar } from '@/components/ui'
 import { Calendar, Plus, Bell, List, CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react'
+import { istDateStr, istDateTimeToUtcISO, utcToISTDateStr, utcToISTParts, formatISTDateTime } from '@/lib/dateTime'
 
 const STATUSES = ['all', 'confirmed', 'done', 'cancelled', 'no_show']
 const CLS: any = { confirmed: 'green', done: 'default', cancelled: 'red', no_show: 'amber' }
@@ -20,10 +21,12 @@ export default function AppointmentsPage() {
   const [remindingAll,setRemindingAll]   = useState(false)
   const [form, setForm] = useState({ customer_name: '', customer_phone: '', service: '', appointment_date: '', appointment_time: '', notes: '' })
 
-  // How many distinct customers have a confirmed appointment today (UTC, matching backend)
-  const todayUTC = new Date().toISOString().split('T')[0]
+  // How many distinct customers have a confirmed appointment today (IST).
+  // Backend anchors business days to Asia/Kolkata; comparing against a UTC
+  // day-string dropped appointments after 18:30 IST when the UTC day flipped.
+  const todayIST = istDateStr()
   const remindCount = new Set(
-    appts.filter(a => a.status === 'confirmed' && (a.appointment_time || '').slice(0, 10) === todayUTC)
+    appts.filter(a => a.status === 'confirmed' && a.appointment_time && utcToISTDateStr(a.appointment_time) === todayIST)
          .map(a => a.customer_id || a.customers?.phone)
   ).size
 
@@ -61,8 +64,12 @@ export default function AppointmentsPage() {
     const phone = (form.customer_phone || '').replace(/\D/g, '')
     if (phone.length < 10) { showToast('Enter a valid 10-digit phone number', 'error'); return }
     setSaving(true)
-    const dt = new Date(`${form.appointment_date}T${form.appointment_time}:00`)
-    const { error } = await api.createAppointment({ customer_name: form.customer_name, customer_phone: form.customer_phone, service: form.service, appointment_time: dt.toISOString(), notes: form.notes, status: 'confirmed' })
+    // Anchor the picked date+time to IST regardless of the browser's timezone —
+    // the backend treats all business timestamps as IST. Without the +05:30
+    // offset, `new Date('YYYY-MM-DDTHH:MM')` parses in browser TZ and
+    // shifts by ±5:30h for anyone outside India.
+    const appointment_time = istDateTimeToUtcISO(form.appointment_date, form.appointment_time)
+    const { error } = await api.createAppointment({ customer_name: form.customer_name, customer_phone: form.customer_phone, service: form.service, appointment_time, notes: form.notes, status: 'confirmed' })
     if (error) showToast('Failed to create', 'error')
     else { showToast('Appointment created', 'success'); setShowForm(false); setForm({ customer_name: '', customer_phone: '', service: '', appointment_date: '', appointment_time: '', notes: '' }); await load() }
     setSaving(false)
@@ -72,13 +79,21 @@ export default function AppointmentsPage() {
   const counts: any = STATUSES.reduce((acc, s) => ({ ...acc, [s]: s === 'all' ? appts.length : appts.filter(a => a.status === s).length }), {})
 
   function buildCalendar() {
+    // Calendar cells are IST days. Comparing each appointment's IST-projected
+    // year/month/day (not the browser-TZ getMonth/getDate) prevents an
+    // appointment near IST midnight from showing on the wrong cell for
+    // browsers running in a different timezone.
     const year = calMonth.getFullYear(), month = calMonth.getMonth()
     const startDay = new Date(year, month, 1).getDay()
     const daysInMonth = new Date(year, month + 1, 0).getDate()
     const cells: any[] = []
     for (let i = 0; i < startDay; i++) cells.push(null)
     for (let d = 1; d <= daysInMonth; d++) {
-      const dayAppts = appts.filter(a => { const ad = new Date(a.appointment_time); return ad.getFullYear() === year && ad.getMonth() === month && ad.getDate() === d })
+      const dayAppts = appts.filter(a => {
+        if (!a.appointment_time) return false
+        const p = utcToISTParts(a.appointment_time)
+        return p.year === year && p.month === month && p.day === d
+      })
       cells.push({ day: d, appts: dayAppts })
     }
     return cells
@@ -117,12 +132,13 @@ export default function AppointmentsPage() {
                 <thead><tr className="border-b border-[rgba(255,255,255,0.06)]">{['Customer', 'Service', 'Date & Time', 'Status', 'Actions'].map(h => <th key={h} className="text-left text-xs font-medium text-[#5A6370] uppercase tracking-wider px-4 py-3">{h}</th>)}</tr></thead>
                 <tbody>
                   {list.map((a: any) => {
-                    const dt = new Date(a.appointment_time)
+                    // Render date/time in IST regardless of browser TZ.
+                    const { date, time } = formatISTDateTime(a.appointment_time)
                     return (
                       <tr key={a.id} className="border-b border-[rgba(255,255,255,0.03)] hover:bg-[#141618] transition-all">
                         <td className="px-4 py-3"><div className="flex items-center gap-2.5"><Avatar name={a.customers?.name} phone={a.customers?.phone} size="sm" /><div><p className="text-sm font-medium text-[#E8EAED]">{a.customers?.name || '—'}</p><p className="text-xs text-[#5A6370]">{a.customers?.phone}</p></div></div></td>
                         <td className="px-4 py-3 text-sm text-[#9AA0AB]">{a.service || '—'}</td>
-                        <td className="px-4 py-3"><p className="text-sm text-[#9AA0AB]">{dt.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</p><p className="text-xs text-[#5A6370]">{dt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</p></td>
+                        <td className="px-4 py-3"><p className="text-sm text-[#9AA0AB]">{date}</p><p className="text-xs text-[#5A6370]">{time}</p></td>
                         <td className="px-4 py-3"><Badge variant={CLS[a.status]}>{a.status.replace('_', ' ')}</Badge></td>
                         <td className="px-4 py-3">{a.status === 'confirmed' && (<div className="flex gap-1.5"><Button size="xs" variant="ghost" icon={Bell} onClick={() => sendReminder(a.id)}>Remind</Button><Button size="xs" variant="secondary" onClick={() => updateStatus(a.id, 'done')} loading={updating === a.id}>Done</Button><Button size="xs" variant="ghost" onClick={() => updateStatus(a.id, 'no_show')}>No-show</Button></div>)}</td>
                       </tr>
@@ -144,7 +160,7 @@ export default function AppointmentsPage() {
           <div className="grid grid-cols-7 gap-1">
             {buildCalendar().map((cell, i) => (
               <div key={i} className={`min-h-[72px] rounded-lg p-1.5 ${cell ? 'bg-[#141618] border border-[rgba(255,255,255,0.04)]' : ''}`}>
-                {cell && (<><p className="text-xs text-[#9AA0AB] mb-1">{cell.day}</p><div className="space-y-0.5">{cell.appts.slice(0, 2).map((a: any) => (<div key={a.id} className="text-xs px-1.5 py-0.5 rounded bg-[rgba(0,197,122,0.12)] text-[#00C57A] truncate">{new Date(a.appointment_time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })} {a.customers?.name || a.service}</div>))}{cell.appts.length > 2 && <p className="text-xs text-[#5A6370] px-1">+{cell.appts.length - 2}</p>}</div></>)}
+                {cell && (<><p className="text-xs text-[#9AA0AB] mb-1">{cell.day}</p><div className="space-y-0.5">{cell.appts.slice(0, 2).map((a: any) => (<div key={a.id} className="text-xs px-1.5 py-0.5 rounded bg-[rgba(0,197,122,0.12)] text-[#00C57A] truncate">{formatISTDateTime(a.appointment_time).time} {a.customers?.name || a.service}</div>))}{cell.appts.length > 2 && <p className="text-xs text-[#5A6370] px-1">+{cell.appts.length - 2}</p>}</div></>)}
               </div>
             ))}
           </div>
