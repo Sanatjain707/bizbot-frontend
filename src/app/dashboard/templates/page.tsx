@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
 import { Card, Button, Badge, Modal, Input, Textarea, Select, EmptyState, Skeleton, showToast } from '@/components/ui'
-import { Plus, FileText, Trash2, CheckCircle, Clock, XCircle, RefreshCw } from 'lucide-react'
+import { Plus, FileText, Trash2, CheckCircle, Clock, XCircle, RefreshCw, Info } from 'lucide-react'
 
 const STATUS_META: any = {
   APPROVED: { variant: 'green', icon: CheckCircle, label: 'Approved' },
@@ -54,6 +54,7 @@ export default function TemplatesPage() {
   const [saving,    setSaving]    = useState(false)
   const [form, setForm] = useState<typeof EMPTY>({ ...EMPTY })
   const [confirmDel, setConfirmDel] = useState<any>(null)
+  const [guide, setGuide] = useState(false)
 
   useEffect(() => { load() }, [])
   async function load() {
@@ -124,6 +125,7 @@ export default function TemplatesPage() {
       <div className="flex items-center justify-between mb-6">
         <div><h1 className="text-xl font-bold text-[#E8EAED] mb-1 font-[Syne]">Message Templates</h1><p className="text-sm text-[#5A6370]">Create templates for broadcasts. Meta must approve each one before use.</p></div>
         <div className="flex gap-2">
+          <Button variant="ghost" size="sm" icon={Info} onClick={() => setGuide(true)}>Formatting &amp; tips</Button>
           <Button variant="secondary" size="sm" icon={RefreshCw} onClick={load}>Refresh</Button>
           <Button icon={Plus} onClick={openNew}>New Template</Button>
         </div>
@@ -180,6 +182,7 @@ export default function TemplatesPage() {
             <p className="text-xs font-medium text-[#9AA0AB] mb-2">Preview</p>
             <WaPreview header={form.header} body={form.body} footer={form.footer} headerExample={form.headerExample} bodyExamples={form.bodyExamples} />
             <p className="text-xs text-[#5A6370] mt-3">Meta reviews each template (usually within an hour). Status updates appear here automatically.</p>
+            <button onClick={() => setGuide(true)} className="text-xs text-[#4D9EFF] hover:underline mt-2">Formatting &amp; approval tips →</button>
           </div>
         </div>
 
@@ -200,6 +203,59 @@ export default function TemplatesPage() {
         <div className="flex gap-2">
           <Button variant="danger" onClick={() => remove(confirmDel)}>Delete permanently</Button>
           <Button variant="ghost" onClick={() => setConfirmDel(null)}>Cancel</Button>
+        </div>
+      </Modal>
+
+      {/* Formatting & approval guide */}
+      <Modal open={guide} onClose={() => setGuide(false)} title="Template formatting & approval guide" size="lg">
+        <div className="space-y-5">
+          <section>
+            <h3 className="text-sm font-semibold text-[#E8EAED] mb-2">Text formatting</h3>
+            <div className="space-y-1.5">
+              {[
+                ['*bold*', <b key="b">bold</b>, 'single asterisks'],
+                ['_italic_', <i key="i">italic</i>, 'underscores'],
+                ['~strike~', <s key="s">strike</s>, 'tildes'],
+                ['```mono```', <code key="m" className="text-[#E8EAED]">mono</code>, 'triple backticks'],
+              ].map(([syntax, rendered, note]: any, i) => (
+                <div key={i} className="flex items-center gap-3 p-2 bg-[#141618] rounded-lg">
+                  <code className="text-xs text-[#4D9EFF] font-mono w-28">{syntax}</code>
+                  <span className="text-sm flex-1 text-[#E8EAED]">{rendered}</span>
+                  <span className="text-xs text-[#5A6370]">{note}</span>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-[#5A6370] mt-2">Press Enter for line breaks; leave a blank line between paragraphs.</p>
+          </section>
+
+          <section>
+            <h3 className="text-sm font-semibold text-[#E8EAED] mb-2">Variables</h3>
+            <ul className="space-y-1 text-sm text-[#9AA0AB] list-disc pl-5">
+              <li>Use <code className="text-[#4D9EFF]">{'{{1}}'}</code>, <code className="text-[#4D9EFF]">{'{{2}}'}</code>… for personalised values (name, amount, date).</li>
+              <li>Give each variable a realistic example — Meta requires it and we ask for it.</li>
+              <li>Don&apos;t start or end the message with a variable, and never place two side by side (<code>{'{{1}}{{2}}'}</code>).</li>
+            </ul>
+          </section>
+
+          <section>
+            <h3 className="text-sm font-semibold text-[#00C57A] mb-2">Do — boosts approval</h3>
+            <ul className="space-y-1 text-sm text-[#9AA0AB] list-disc pl-5">
+              <li>Pick the right category: <b>Utility</b> for updates/reminders/receipts, <b>Marketing</b> for offers/promos.</li>
+              <li>Be clear and specific; check spelling and grammar.</li>
+              <li>Keep it concise and match the language you selected.</li>
+            </ul>
+          </section>
+
+          <section>
+            <h3 className="text-sm font-semibold text-[#FF5A5A] mb-2">Don&apos;t — common rejection causes</h3>
+            <ul className="space-y-1 text-sm text-[#9AA0AB] list-disc pl-5">
+              <li>Don&apos;t put promotional content in a Utility template (category mismatch = rejected).</li>
+              <li>No link shorteners (bit.ly, tinyurl) — use the full URL.</li>
+              <li>Avoid ALL CAPS, excessive emojis, or lots of punctuation!!!</li>
+              <li>No variables in the footer; no vague content like just &quot;Hi&quot; or &quot;Update&quot;.</li>
+              <li>Never ask for passwords, OTPs, or card numbers in a normal template.</li>
+            </ul>
+          </section>
         </div>
       </Modal>
     </div>
