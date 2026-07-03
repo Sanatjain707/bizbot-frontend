@@ -22,6 +22,8 @@ export default function BroadcastPage() {
   const [sending,   setSending]   = useState<string | null>(null)
   const [audience,  setAudience]  = useState<any>({ count: 0, estCost: 0 })
   const [form, setForm] = useState({ name: '', template_id: '', segment: 'all', segment_value: '', scheduled_at: '' })
+  const [confirmSend, setConfirmSend] = useState<any>(null)
+  const [cancelling, setCancelling] = useState<string | null>(null)
 
   useEffect(() => { load() }, [])
   async function load() {
@@ -29,6 +31,21 @@ export default function BroadcastPage() {
     if (c.data) setCampaigns(c.data)
     if (t.data) setTemplates(t.data)
     setLoading(false)
+  }
+
+  // A blast runs in the background; poll so counters update live while it sends.
+  useEffect(() => {
+    if (!campaigns.some(c => c.status === 'sending')) return
+    const t = setInterval(load, 5000)
+    return () => clearInterval(t)
+  }, [campaigns])
+
+  async function doCancel(id: string) {
+    setCancelling(id)
+    const { error } = await api.cancelCampaign(id)
+    setCancelling(null)
+    showToast(error || 'Campaign cancelled', error ? 'error' : 'success')
+    load()
   }
 
   // Recompute audience whenever segment changes. Debounce so typing a service
@@ -61,10 +78,11 @@ export default function BroadcastPage() {
     const { data, error } = await api.createCampaign(payload)
     if (error || !data) { showToast(error || 'Failed', 'error'); setSaving(false); return }
     if (thenSend) {
-      const { error: sErr } = await api.sendCampaign((data as any).id)
-      showToast(sErr ? `Send failed: ${sErr}` : 'Campaign sent! 🚀', sErr ? 'error' : 'success')
+      const { data: sd, error: sErr } = await api.sendCampaign((data as any).id)
+      if (sErr) showToast(`Send failed: ${sErr}`, 'error')
+      else showToast(`Broadcasting to ${(sd as any)?.total ?? ''} customers — sending in the background 🚀`, 'success')
     } else {
-      showToast('Campaign saved as draft', 'success')
+      showToast(form.scheduled_at ? 'Campaign scheduled' : 'Campaign saved as draft', 'success')
     }
     setModal(false)
     setForm({ name: '', template_id: '', segment: 'all', segment_value: '', scheduled_at: '' })
@@ -74,8 +92,9 @@ export default function BroadcastPage() {
 
   async function sendNow(id: string) {
     setSending(id)
-    const { error } = await api.sendCampaign(id)
-    showToast(error ? `Send failed: ${error}` : 'Campaign sent! 🚀', error ? 'error' : 'success')
+    const { data, error } = await api.sendCampaign(id)
+    if (error) showToast(`Send failed: ${error}`, 'error')
+    else showToast(`Broadcasting to ${(data as any)?.total ?? ''} customers — sending in the background 🚀`, 'success')
     setSending(null)
     load()
   }
@@ -118,9 +137,14 @@ export default function BroadcastPage() {
                   </div>
                   <p className="text-xs text-[#5A6370]">{c.templates?.name || 'template'} · {SEGMENTS.find(s => s.value === c.segment)?.label || c.segment} · {c.total} recipients</p>
                 </div>
-                {c.status === 'draft' && (
-                  <Button size="sm" icon={Send} loading={sending === c.id} onClick={() => sendNow(c.id)}>Send Now</Button>
-                )}
+                <div className="flex gap-2">
+                  {c.status === 'draft' && (
+                    <Button size="sm" icon={Send} loading={sending === c.id} onClick={() => setConfirmSend({ type: 'existing', id: c.id, count: c.total, cost: c.est_cost })}>Send Now</Button>
+                  )}
+                  {(c.status === 'draft' || c.status === 'scheduled') && (
+                    <Button size="sm" variant="ghost" loading={cancelling === c.id} onClick={() => doCancel(c.id)}>Cancel</Button>
+                  )}
+                </div>
               </div>
               {/* Analytics funnel */}
               <div className="grid grid-cols-5 gap-2">
@@ -171,11 +195,27 @@ export default function BroadcastPage() {
           </div>
         </div>
         <div className="flex gap-2 mt-5">
-          <Button onClick={() => create(true)} loading={saving} icon={Send}>Send Now</Button>
-          <Button variant="secondary" onClick={() => create(false)} loading={saving}>Save Draft</Button>
+          {!form.scheduled_at && (
+            <Button onClick={() => setConfirmSend({ type: 'new', count: audience.count, cost: audience.estCost })} loading={saving} icon={Send}>Send Now</Button>
+          )}
+          <Button variant="secondary" onClick={() => create(false)} loading={saving}>{form.scheduled_at ? 'Schedule' : 'Save Draft'}</Button>
           <Button variant="ghost" onClick={() => setModal(false)}>Cancel</Button>
         </div>
-        <p className="text-xs text-[#5A6370] mt-3">Customers who replied "STOP" are automatically excluded. Meta charges per marketing message.</p>
+        <p className="text-xs text-[#5A6370] mt-3">Customers who replied &quot;STOP&quot; are automatically excluded. Meta charges per marketing message.</p>
+      </Modal>
+
+      {/* Cost-confirmation gate */}
+      <Modal open={!!confirmSend} onClose={() => setConfirmSend(null)} title="Confirm broadcast" size="sm">
+        <p className="text-sm text-[#9AA0AB] mb-1">You&apos;re about to message <strong className="text-[#E8EAED]">{confirmSend?.count} customer{confirmSend?.count === 1 ? '' : 's'}</strong>.</p>
+        <p className="text-sm text-[#9AA0AB] mb-4">Estimated cost: <strong className="text-[#FFA040]">₹{confirmSend?.cost}</strong> — Meta charges per marketing message.</p>
+        <div className="flex gap-2 justify-end">
+          <Button variant="ghost" onClick={() => setConfirmSend(null)}>Cancel</Button>
+          <Button icon={Send} loading={saving || sending !== null} onClick={async () => {
+            const cs = confirmSend; setConfirmSend(null)
+            if (cs.type === 'new') await create(true)
+            else await sendNow(cs.id)
+          }}>Send to {confirmSend?.count}</Button>
+        </div>
       </Modal>
     </div>
   )

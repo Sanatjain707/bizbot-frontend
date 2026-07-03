@@ -155,7 +155,8 @@ export const api = {
   getAudience:             (segment: string, value?: string) => call<any>(`/api/broadcast/audience?segment=${segment}${value ? `&value=${encodeURIComponent(value)}` : ''}`),
   getCampaigns:            ()                       => call<any[]>('/api/broadcast/campaigns'),
   createCampaign:          (d: any)                 => call('/api/broadcast/campaigns', { method: 'POST', body: JSON.stringify(d) }),
-  sendCampaign:            (id: string)             => call(`/api/broadcast/campaigns/${id}/send`, { method: 'POST' }),
+  sendCampaign:            (id: string)             => call<any>(`/api/broadcast/campaigns/${id}/send`, { method: 'POST' }),
+  cancelCampaign:          (id: string)             => call(`/api/broadcast/campaigns/${id}/cancel`, { method: 'POST' }),
 
   // Analytics
   getAnalytics:            (q: string)              => call<any>(`/api/analytics?${q}`),
