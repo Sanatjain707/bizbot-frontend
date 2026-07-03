@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { adminApi } from '@/lib/adminApi'
-import { Card, StatCard, Button, Select, Badge, Textarea, Skeleton, showToast } from '@/components/ui'
+import { Card, StatCard, Button, Select, Badge, Textarea, Input, Modal, Skeleton, showToast } from '@/components/ui'
 import { StatusBadge } from '@/components/admin/StatusBadge'
 import { ArrowLeft, MessageSquare, Calendar, Users, CreditCard, Eye, Trash2 } from 'lucide-react'
 
@@ -22,6 +22,9 @@ export default function AdminClientDetail() {
   const [notes, setNotes]     = useState<any[]>([])
   const [noteText, setNoteText] = useState('')
   const [savingNote, setSavingNote] = useState(false)
+  const [confirmDel, setConfirmDel] = useState(false)
+  const [confirmText, setConfirmText] = useState('')
+  const [deleting, setDeleting] = useState(false)
 
   const load = useCallback(async () => {
     const { data, error } = await adminApi.client(id)
@@ -55,6 +58,14 @@ export default function AdminClientDetail() {
     sessionStorage.setItem('impersonate-biz-name', data?.client?.name || 'client')
     localStorage.setItem('bizId', id)
     window.location.href = '/dashboard'
+  }
+
+  async function doDelete() {
+    setDeleting(true)
+    const { error } = await adminApi.deleteClient(id)
+    setDeleting(false)
+    if (error) showToast(error, 'error')
+    else { showToast('Client deleted', 'success'); router.push('/admin/clients') }
   }
 
   async function act(fn: () => Promise<{ error: string | null }>, okMsg: string) {
@@ -170,6 +181,24 @@ export default function AdminClientDetail() {
           </div>
         )}
       </Card>
+
+      {/* Danger zone */}
+      <Card className="p-5 border-[rgba(255,90,90,0.25)]">
+        <h2 className="text-sm font-semibold text-[#FF5A5A] mb-1">Danger zone</h2>
+        <p className="text-xs text-[#5A6370] mb-3">Permanently delete this client and ALL associated data — customers, messages, appointments, and payments. This cannot be undone.</p>
+        <Button variant="danger" icon={Trash2} onClick={() => { setConfirmText(''); setConfirmDel(true) }}>Delete client</Button>
+      </Card>
+
+      <Modal open={confirmDel} onClose={() => setConfirmDel(false)} title="Delete this client?">
+        <p className="text-sm text-[#9AA0AB] mb-1">This permanently removes <span className="text-[#E8EAED] font-medium">{c.name}</span> and all their customers, messages, appointments, and payments.</p>
+        <p className="text-sm text-[#FF5A5A] mb-4">This cannot be undone.</p>
+        <p className="text-xs text-[#5A6370] mb-1.5">Type <span className="text-[#E8EAED] font-medium">{c.name}</span> to confirm:</p>
+        <Input value={confirmText} onChange={(e: any) => setConfirmText(e.target.value)} placeholder={c.name} />
+        <div className="flex gap-2 justify-end mt-5">
+          <Button variant="secondary" onClick={() => setConfirmDel(false)}>Cancel</Button>
+          <Button variant="danger" icon={Trash2} loading={deleting} disabled={confirmText.trim() !== (c.name || '').trim()} onClick={doDelete}>Delete permanently</Button>
+        </div>
+      </Modal>
     </div>
   )
 }

@@ -40,4 +40,5 @@ export const adminApi = {
   deleteNote:   (noteId: string)         => adminCall<any>(`/api/admin/notes/${noteId}`, { method: 'DELETE' }),
   changePlan:   (id: string, body: any)  => adminCall<any>(`/api/admin/clients/${id}/plan`,   { method: 'PATCH', body: JSON.stringify(body) }),
   changeStatus: (id: string, body: any)  => adminCall<any>(`/api/admin/clients/${id}/status`, { method: 'PATCH', body: JSON.stringify(body) }),
+  deleteClient: (id: string)             => adminCall<any>(`/api/admin/clients/${id}`, { method: 'DELETE' }),
 }
