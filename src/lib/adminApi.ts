@@ -33,6 +33,7 @@ export const adminApi = {
   overview:     ()                       => adminCall<any>('/api/admin/overview'),
   clients:      (query = '')             => adminCall<any>(`/api/admin/clients${query ? `?${query}` : ''}`),
   client:       (id: string)             => adminCall<any>(`/api/admin/clients/${id}`),
+  alerts:       (query = '')             => adminCall<any>(`/api/admin/alerts${query ? `?${query}` : ''}`),
   changePlan:   (id: string, body: any)  => adminCall<any>(`/api/admin/clients/${id}/plan`,   { method: 'PATCH', body: JSON.stringify(body) }),
   changeStatus: (id: string, body: any)  => adminCall<any>(`/api/admin/clients/${id}/status`, { method: 'PATCH', body: JSON.stringify(body) }),
 }

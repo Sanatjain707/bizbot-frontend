@@ -43,6 +43,28 @@ export default function AdminOverview() {
         ))}
       </div>
 
+      {data.revenue && (
+        <div className="grid grid-cols-4 gap-3">
+          <Card className="p-4 col-span-2 bg-gradient-to-r from-[rgba(0,197,122,0.08)] to-transparent border-[rgba(0,197,122,0.15)]">
+            <p className="text-xs text-[#5A6370] mb-1 uppercase tracking-wider">Monthly recurring revenue</p>
+            <p className="text-3xl font-bold text-[#00C57A] font-[Syne]">₹{Number(data.revenue.mrr).toLocaleString('en-IN')}</p>
+            <p className="text-xs text-[#5A6370] mt-1">{data.revenue.payingClients} paying client{data.revenue.payingClients === 1 ? '' : 's'}</p>
+          </Card>
+          <Card className="p-4 col-span-2">
+            <p className="text-xs text-[#5A6370] mb-2 uppercase tracking-wider">Paying clients by plan</p>
+            <div className="flex items-end gap-6">
+              {[['Starter', data.revenue.byPlan.starter, '₹999'], ['Growth', data.revenue.byPlan.growth, '₹1,999'], ['Pro', data.revenue.byPlan.pro, '₹3,999']].map(([l, n, p]: any) => (
+                <div key={l}>
+                  <p className="text-2xl font-bold text-[#E8EAED] font-[Syne]">{n}</p>
+                  <p className="text-xs text-[#9AA0AB]">{l}</p>
+                  <p className="text-xs text-[#5A6370]">{p}/mo</p>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+      )}
+
       <div className="grid grid-cols-3 gap-3">
         {[['Messages', data.totals.messages], ['Appointments', data.totals.appointments], ['Customers', data.totals.customers]].map(([l, v]: any) => (
           <Card key={l} className="p-4">

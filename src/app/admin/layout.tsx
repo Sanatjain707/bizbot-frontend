@@ -8,6 +8,7 @@ import { adminApi } from '@/lib/adminApi'
 const NAV = [
   { href: '/admin', label: 'Overview' },
   { href: '/admin/clients', label: 'Clients' },
+  { href: '/admin/alerts', label: 'Alerts' },
 ]
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
