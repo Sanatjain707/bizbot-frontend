@@ -99,9 +99,10 @@ export const api = {
 
   // Appointments
   getTodayAppointments:    ()                       => call<any[]>('/api/dashboard/appointments/today'),
-  // Backend switched to `{ appointments, nextCursor }`; unwrap so consumers
-  // keep receiving a plain array. Pass cursor/limit later when the UI paginates.
-  getAllAppointments:      async ()                 => unwrap<any>(await call<any>('/api/dashboard/appointments'), 'appointments'),
+  // Use the legacy flat endpoint so the list isn't silently capped at the
+  // paginated default of 50. Returns the full set (up to 500) as a plain array.
+  // Switch to cursor pagination here once the UI has a "load more".
+  getAllAppointments:      async ()                 => unwrap<any>(await call<any>('/api/dashboard/appointments?paginated=false'), 'appointments'),
   createAppointment:       (d: any)                 => call('/api/dashboard/appointments/create', { method: 'POST', body: JSON.stringify(d) }),
   updateAppointment:       (id: string, d: any)     => call(`/api/dashboard/appointments/${id}`, { method: 'PATCH', body: JSON.stringify(d) }),
   updateAppointmentStatus: (id: string, status: string) => call(`/api/dashboard/appointments/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
