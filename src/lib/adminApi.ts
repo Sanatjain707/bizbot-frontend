@@ -34,6 +34,10 @@ export const adminApi = {
   clients:      (query = '')             => adminCall<any>(`/api/admin/clients${query ? `?${query}` : ''}`),
   client:       (id: string)             => adminCall<any>(`/api/admin/clients/${id}`),
   alerts:       (query = '')             => adminCall<any>(`/api/admin/alerts${query ? `?${query}` : ''}`),
+  audit:        (query = '')             => adminCall<any>(`/api/admin/audit${query ? `?${query}` : ''}`),
+  notes:        (id: string)             => adminCall<any>(`/api/admin/clients/${id}/notes`),
+  addNote:      (id: string, body: string) => adminCall<any>(`/api/admin/clients/${id}/notes`, { method: 'POST', body: JSON.stringify({ body }) }),
+  deleteNote:   (noteId: string)         => adminCall<any>(`/api/admin/notes/${noteId}`, { method: 'DELETE' }),
   changePlan:   (id: string, body: any)  => adminCall<any>(`/api/admin/clients/${id}/plan`,   { method: 'PATCH', body: JSON.stringify(body) }),
   changeStatus: (id: string, body: any)  => adminCall<any>(`/api/admin/clients/${id}/status`, { method: 'PATCH', body: JSON.stringify(body) }),
 }

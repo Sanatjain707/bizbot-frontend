@@ -2,9 +2,9 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { adminApi } from '@/lib/adminApi'
-import { Card, StatCard, Button, Select, Badge, Skeleton, showToast } from '@/components/ui'
+import { Card, StatCard, Button, Select, Badge, Textarea, Skeleton, showToast } from '@/components/ui'
 import { StatusBadge } from '@/components/admin/StatusBadge'
-import { ArrowLeft, MessageSquare, Calendar, Users, CreditCard } from 'lucide-react'
+import { ArrowLeft, MessageSquare, Calendar, Users, CreditCard, Eye, Trash2 } from 'lucide-react'
 
 const PLANS = [
   { value: 'trial', label: 'Trial' },
@@ -19,13 +19,43 @@ export default function AdminClientDetail() {
   const [data, setData]       = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy]       = useState(false)
+  const [notes, setNotes]     = useState<any[]>([])
+  const [noteText, setNoteText] = useState('')
+  const [savingNote, setSavingNote] = useState(false)
 
   const load = useCallback(async () => {
     const { data, error } = await adminApi.client(id)
     if (error) showToast(error, 'error'); else setData(data)
     setLoading(false)
   }, [id])
-  useEffect(() => { load() }, [load])
+  const loadNotes = useCallback(async () => {
+    const { data } = await adminApi.notes(id)
+    setNotes(data?.notes || [])
+  }, [id])
+  useEffect(() => { load(); loadNotes() }, [load, loadNotes])
+
+  async function addNote() {
+    const body = noteText.trim()
+    if (!body) return
+    setSavingNote(true)
+    const { error } = await adminApi.addNote(id, body)
+    setSavingNote(false)
+    if (error) showToast(error, 'error')
+    else { setNoteText(''); loadNotes() }
+  }
+  async function delNote(noteId: string) {
+    const { error } = await adminApi.deleteNote(noteId)
+    if (error) showToast(error, 'error'); else loadNotes()
+  }
+
+  // Open the client's own dashboard as them. requireBusinessAuth grants admins
+  // cross-tenant access; the dashboard layout reads these keys and shows a banner.
+  function impersonate() {
+    sessionStorage.setItem('impersonate-biz-id', id)
+    sessionStorage.setItem('impersonate-biz-name', data?.client?.name || 'client')
+    localStorage.setItem('bizId', id)
+    window.location.href = '/dashboard'
+  }
 
   async function act(fn: () => Promise<{ error: string | null }>, okMsg: string) {
     setBusy(true)
@@ -51,11 +81,16 @@ export default function AdminClientDetail() {
     <div className="animate-up space-y-6">
       <button onClick={() => router.push('/admin/clients')} className="flex items-center gap-1.5 text-xs text-[#5A6370] hover:text-[#E8EAED]"><ArrowLeft size={13} /> All clients</button>
 
-      <div className="flex items-center gap-3">
-        <h1 className="text-xl font-bold text-[#E8EAED] font-[Syne]">{c.name}</h1>
-        <StatusBadge status={c.status} />
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-3">
+            <h1 className="text-xl font-bold text-[#E8EAED] font-[Syne]">{c.name}</h1>
+            <StatusBadge status={c.status} />
+          </div>
+          <p className="text-sm text-[#5A6370] mt-1">{c.type || '—'} · {c.owner_name || '—'} · {c.email || 'no email'}</p>
+        </div>
+        <Button variant="secondary" icon={Eye} onClick={impersonate}>View as client</Button>
       </div>
-      <p className="text-sm text-[#5A6370] -mt-4">{c.type || '—'} · {c.owner_name || '—'} · {c.email || 'no email'}</p>
 
       {/* Usage */}
       <div className="grid grid-cols-4 gap-3">
@@ -111,6 +146,30 @@ export default function AdminClientDetail() {
           </div>
         </Card>
       </div>
+
+      {/* Support notes */}
+      <Card className="p-5">
+        <h2 className="text-sm font-semibold text-[#E8EAED] mb-3">Support notes</h2>
+        <div className="flex items-start gap-2 mb-4">
+          <Textarea value={noteText} onChange={(e: any) => setNoteText(e.target.value)} placeholder="Add an internal note about this client..." rows={2} className="flex-1" />
+          <Button onClick={addNote} loading={savingNote} disabled={!noteText.trim()}>Add</Button>
+        </div>
+        {notes.length === 0 ? (
+          <p className="text-xs text-[#5A6370]">No notes yet.</p>
+        ) : (
+          <div className="space-y-2">
+            {notes.map((n: any) => (
+              <div key={n.id} className="flex items-start justify-between gap-3 p-3 bg-[#141618] rounded-xl">
+                <div className="min-w-0">
+                  <p className="text-sm text-[#E8EAED] whitespace-pre-wrap break-words">{n.body}</p>
+                  <p className="text-xs text-[#5A6370] mt-1">{n.author} · {new Date(n.created_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+                </div>
+                <button onClick={() => delNote(n.id)} className="p-1.5 rounded-lg text-[#5A6370] hover:text-[#FF5A5A] hover:bg-[rgba(255,90,90,0.08)] flex-shrink-0" title="Delete note"><Trash2 size={14} /></button>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
     </div>
   )
 }

@@ -13,6 +13,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [biz, setBiz]     = useState<any>({})
   const [openAlerts, setOpenAlerts] = useState(0)
   const [fatalError, setFatalError] = useState<string | null>(null)
+  const [impersonating, setImpersonating] = useState<string | null>(null)
+
+  function exitImpersonation() {
+    sessionStorage.removeItem('impersonate-biz-id')
+    sessionStorage.removeItem('impersonate-biz-name')
+    localStorage.removeItem('bizId')
+    window.location.href = '/admin/clients'
+  }
 
   // Poll the open-alerts count so the sidebar badge stays fresh without
   // requiring the user to sit on the alerts page.
@@ -61,6 +69,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       }
       if (cancelled) return
       if (!user) { router.replace('/login'); return }
+
+      // Operator impersonation: an admin opened this dashboard "as" a client.
+      // Use the impersonated bizId directly — requireBusinessAuth grants admins
+      // cross-tenant access — and skip the normal by-user resolution.
+      const impId = sessionStorage.getItem('impersonate-biz-id')
+      if (impId) {
+        localStorage.setItem('bizId', impId)
+        const ok = await loadBiz()
+        if (cancelled) return
+        if (ok) { setImpersonating(sessionStorage.getItem('impersonate-biz-name') || 'client'); setReady(true); return }
+        // Couldn't load that business — drop impersonation and fall through.
+        sessionStorage.removeItem('impersonate-biz-id')
+        sessionStorage.removeItem('impersonate-biz-name')
+      }
 
       try {
         const params = new URLSearchParams()
@@ -159,7 +181,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div className="max-w-6xl mx-auto px-8 py-8">{children}</div>
         </PlanProvider>
       </main>
-      <IdleWatch />
+      {impersonating && (
+        <div className="fixed bottom-0 left-0 right-0 z-[60] bg-[#3A2E14] border-t border-[rgba(255,200,87,0.3)] text-[#FFC857] text-sm px-5 py-2.5 flex items-center justify-between">
+          <span>Viewing as <strong>{impersonating}</strong> — admin impersonation</span>
+          <button onClick={exitImpersonation} className="px-3 py-1 rounded-lg bg-[#FFC857] text-[#1A1410] font-bold text-xs">Exit</button>
+        </div>
+      )}
+      {!impersonating && <IdleWatch />}
     </div>
   )
 }
