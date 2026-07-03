@@ -152,7 +152,7 @@ export const api = {
   deleteTemplate:          (id: string)             => call(`/api/broadcast/templates/${id}`, { method: 'DELETE' }),
 
   // Broadcast — campaigns
-  getAudience:             (segment: string, value?: string) => call<any>(`/api/broadcast/audience?segment=${segment}${value ? `&value=${encodeURIComponent(value)}` : ''}`),
+  getAudience:             (segment: string, value?: string, category?: string) => call<any>(`/api/broadcast/audience?segment=${segment}${value ? `&value=${encodeURIComponent(value)}` : ''}${category ? `&category=${encodeURIComponent(category)}` : ''}`),
   getCampaigns:            ()                       => call<any[]>('/api/broadcast/campaigns'),
   createCampaign:          (d: any)                 => call('/api/broadcast/campaigns', { method: 'POST', body: JSON.stringify(d) }),
   sendCampaign:            (id: string)             => call<any>(`/api/broadcast/campaigns/${id}/send`, { method: 'POST' }),

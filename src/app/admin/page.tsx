@@ -65,13 +65,17 @@ export default function AdminOverview() {
         </div>
       )}
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-4 gap-3">
         {[['Messages', data.totals.messages], ['Appointments', data.totals.appointments], ['Customers', data.totals.customers]].map(([l, v]: any) => (
           <Card key={l} className="p-4">
             <p className="text-xs text-[#5A6370] mb-1">{l} · all clients</p>
             <p className="text-xl font-bold text-[#E8EAED] font-[Syne]">{Number(v).toLocaleString('en-IN')}</p>
           </Card>
         ))}
+        <Card className="p-4">
+          <p className="text-xs text-[#5A6370] mb-1">WhatsApp spend · 30d</p>
+          <p className="text-xl font-bold text-[#E8EAED] font-[Syne]">₹{Number(data.totals.whatsappSpend30d || 0).toLocaleString('en-IN')}</p>
+        </Card>
       </div>
 
       <div className="grid grid-cols-2 gap-5">

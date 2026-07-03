@@ -50,19 +50,20 @@ export default function BroadcastPage() {
 
   // Recompute audience whenever segment changes. Debounce so typing a service
   // name doesn't fire one request per keystroke (~6 for "Facial").
+  const approvedTemplates = templates.filter(t => t.status === 'APPROVED')
+
   useEffect(() => {
     if (!modal) return
+    const cat = approvedTemplates.find(t => t.id === form.template_id)?.category
     const timer = setTimeout(() => {
       let cancelled = false
-      api.getAudience(form.segment, form.segment_value).then(({ data }) => {
+      api.getAudience(form.segment, form.segment_value, cat).then(({ data }) => {
         if (!cancelled && data) setAudience(data)
       })
       return () => { cancelled = true }
     }, 350)
     return () => clearTimeout(timer)
-  }, [form.segment, form.segment_value, modal])
-
-  const approvedTemplates = templates.filter(t => t.status === 'APPROVED')
+  }, [form.segment, form.segment_value, form.template_id, modal])
 
   async function create(thenSend: boolean) {
     if (!form.name.trim()) { showToast('Name your campaign', 'error'); return }
@@ -153,7 +154,7 @@ export default function BroadcastPage() {
                   ['Delivered', c.delivered, CheckCheck, '#4D9EFF'],
                   ['Read', c.read, Eye, '#A87EFF'],
                   ['Replied', c.replied, MessageSquare, '#00C57A'],
-                  ['Cost', `₹${c.est_cost}`, IndianRupee, '#FFA040'],
+                  [c.status === 'sent' ? 'Actual cost' : 'Est. cost', `₹${c.status === 'sent' ? (c.actual_cost ?? 0) : c.est_cost}`, IndianRupee, '#FFA040'],
                 ].map(([label, val, Icon, color]: any, i) => (
                   <div key={i} className="bg-[#141618] rounded-xl p-3 text-center">
                     <Icon size={13} style={{ color }} className="mx-auto mb-1" />
@@ -190,7 +191,7 @@ export default function BroadcastPage() {
             <div className="flex-1 bg-[#141618] rounded-xl p-3 text-center">
               <IndianRupee size={14} className="text-[#FFA040] mx-auto mb-1" />
               <div className="text-lg font-bold text-[#E8EAED]">₹{audience.estCost}</div>
-              <div className="text-xs text-[#5A6370]">est. cost</div>
+              <div className="text-xs text-[#5A6370]">est. cost{audience.category ? ` · ${audience.category}` : ''}</div>
             </div>
           </div>
         </div>
