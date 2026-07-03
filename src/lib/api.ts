@@ -145,6 +145,9 @@ export const api = {
   getBusiness:             ()                       => call<any>('/api/business'),
   updateBusiness:          (d: any)                 => call('/api/business', { method: 'PATCH', body: JSON.stringify(d) }),
   createBusiness:          (d: any)                 => call('/api/business/create', { method: 'POST', body: JSON.stringify(d) }),
+  getWhatsAppProfile:      ()                       => call<any>('/api/business/whatsapp-profile'),
+  updateWhatsAppProfile:   (d: any)                 => call('/api/business/whatsapp-profile', { method: 'PATCH', body: JSON.stringify(d) }),
+  uploadWhatsAppLogo:      (image: string, mimeType: string) => call('/api/business/whatsapp-profile/photo', { method: 'POST', body: JSON.stringify({ image, mimeType }) }),
 
   // Broadcast — templates
   getTemplates:            ()                       => call<any[]>('/api/broadcast/templates'),

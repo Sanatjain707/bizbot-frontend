@@ -4,6 +4,7 @@ import { api } from '@/lib/api'
 import { Card, Button, Input, Textarea, Select, Badge, showToast, Divider } from '@/components/ui'
 import ServicesManager from '@/components/dashboard/ServicesManager'
 import HoursLocation from '@/components/dashboard/HoursLocation'
+import WhatsAppProfile from '@/components/dashboard/WhatsAppProfile'
 import { Save, Bot, Clock, CreditCard, Phone, Building2, Sparkles } from 'lucide-react'
 
 export default function SettingsPage() {
@@ -117,6 +118,9 @@ export default function SettingsPage() {
         </div>
         <Input label="WhatsApp Phone Number ID" value={biz.whatsapp_phone_id || ''} onChange={(e: any) => set('whatsapp_phone_id', e.target.value)} placeholder="e.g. 123456789012345" hint="From Meta → WhatsApp → API Setup. Leave blank if you want us to set it up." />
       </Card>
+
+      {/* Live WhatsApp profile (name status, logo, about) pulled from Meta */}
+      <div className="mt-4"><WhatsAppProfile /></div>
     </div>
   )
 }
