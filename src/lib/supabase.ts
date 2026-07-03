@@ -110,13 +110,17 @@ export async function destinationForUser(user?: any) {
   const u = user || (await getCurrentUser())
   if (!u) return '/login'
   const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
+  // by-user is JWT-gated (requireUserAuth). Without the token every lookup 401s
+  // and an existing user can never resolve their business after login.
+  const token = await getAccessToken()
+  const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
   const params = new URLSearchParams()
   if (u.id) params.set('auth_user_id', u.id)
   if (u.email) params.set('email', u.email)
 
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const res = await fetch(`${base}/api/business/by-user?${params.toString()}`)
+      const res = await fetch(`${base}/api/business/by-user?${params.toString()}`, { headers })
       if (!res.ok) throw new Error(`by-user ${res.status}`)
       const { business } = await res.json()
       if (business?.id) {

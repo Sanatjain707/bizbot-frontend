@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase, getCurrentUser, destinationForUser } from '@/lib/supabase'
+import { supabase, getCurrentUser, destinationForUser, getAccessToken } from '@/lib/supabase'
 
 const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
 
@@ -61,8 +61,12 @@ export default function OnboardingPage() {
     // this new user into someone else's business.
     localStorage.removeItem('bizId')
     try {
+      // /business/create is JWT-gated (requireUserAuth) — send the token or
+      // onboarding 401s and no new business can be created.
+      const token = await getAccessToken()
       const res = await fetch(`${BASE}/api/business/create`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({
           name: data.name, type: data.type, owner_name: data.owner_name,
           whatsapp_phone_id: data.whatsapp_choice === 'self' ? data.whatsapp_phone_id : null,

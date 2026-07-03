@@ -18,14 +18,17 @@ async function resolveBizId(): Promise<string> {
   if (!pendingBizId) {
     pendingBizId = (async () => {
       try {
-        const { getCurrentUser } = await import('@/lib/supabase')
+        const { getCurrentUser, getAccessToken } = await import('@/lib/supabase')
         const user = await getCurrentUser()
         if (!user) { pendingBizId = null; return '' }
         const params = new URLSearchParams()
         if (user.id) params.set('auth_user_id', user.id)
         if (user.email) params.set('email', user.email)
+        // by-user is JWT-gated — without the token this 401s and bizId stays
+        // empty, which then fails every downstream dashboard call.
+        const token = await getAccessToken()
         const res = await fetch(`${BASE}/api/business/by-user?${params.toString()}`, {
-          headers: { 'ngrok-skip-browser-warning': 'true' },
+          headers: { 'ngrok-skip-browser-warning': 'true', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         })
         const { business } = await res.json()
         if (business?.id) { localStorage.setItem('bizId', business.id); return business.id }

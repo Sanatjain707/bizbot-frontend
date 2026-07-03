@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Sidebar from '@/components/layout/Sidebar'
 import { PlanProvider } from '@/components/dashboard/PlanBanner'
-import { getCurrentUser } from '@/lib/supabase'
+import { getCurrentUser, getAccessToken } from '@/lib/supabase'
 import { useIdleLogout } from '@/hooks/useIdleLogout'
 import { api } from '@/lib/api'
 
@@ -67,15 +67,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         if (user.id) params.set('auth_user_id', user.id)
         if (user.email) params.set('email', user.email)
         const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
-        // AbortController timeout — without it, an unreachable backend
-        // hangs the fetch (and therefore the whole layout) indefinitely.
-        // 10s is longer than any real by-user call but short enough that
-        // a misconfigured NEXT_PUBLIC_API_URL surfaces quickly.
+        // by-user is JWT-gated — send the Supabase token or it 401s and the
+        // dashboard can never resolve the business.
+        const token = await getAccessToken()
+        // AbortController timeout — without it, an unreachable backend hangs the
+        // fetch (and the whole layout) indefinitely. 10s is longer than any real
+        // by-user call but short enough that a misconfigured NEXT_PUBLIC_API_URL
+        // surfaces quickly.
         const ac = new AbortController()
         const timeout = setTimeout(() => ac.abort(), 10_000)
         let res: Response
         try {
-          res = await fetch(`${base}/api/business/by-user?${params.toString()}`, { signal: ac.signal })
+          res = await fetch(`${base}/api/business/by-user?${params.toString()}`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+            signal: ac.signal,
+          })
         } finally {
           clearTimeout(timeout)
         }
