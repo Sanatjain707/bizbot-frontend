@@ -25,7 +25,30 @@ export function PlanProvider({ children }: { children: any }) {
       if (d.state) setPlan({ state: d.state, daysLeft: d.daysLeft, plan: d.plan, wabaStatus: d.wabaStatus })
     } catch (_) {}
   }
-  useEffect(() => { load(); const t = setInterval(load, 60000); return () => clearInterval(t) }, [])
+  useEffect(() => {
+    let cancelled = false
+    async function loadWhenReady() {
+      // First-page-load races: the layout writes bizId AFTER by-user resolves;
+      // banner mount can beat it. Retry until bizId is set (or the layout
+      // dispatches biz-updated) so the banner appears on time, not 60s later.
+      for (let i = 0; i < 30; i++) {
+        if (cancelled) return
+        if (localStorage.getItem('bizId')) { await load(); return }
+        await new Promise(r => setTimeout(r, 200))
+      }
+      await load()
+    }
+    loadWhenReady()
+    const t = setInterval(load, 60000)
+    // Refresh immediately after settings save (business updated event).
+    const onUpdate = () => { if (!cancelled) load() }
+    window.addEventListener('biz-updated', onUpdate)
+    return () => {
+      cancelled = true
+      clearInterval(t)
+      window.removeEventListener('biz-updated', onUpdate)
+    }
+  }, [])
 
   return (
     <PlanContext.Provider value={plan}>

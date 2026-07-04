@@ -85,38 +85,6 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* 30-day analytics summary (links to full page) */}
-      {analytics?.hasData && (
-        <Card className="p-5 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <BarChart3 size={15} className="text-[#00C57A]" />
-              <h2 className="text-sm font-semibold text-[#E8EAED]">Last 30 days</h2>
-            </div>
-            <a href="/dashboard/analytics" className="text-xs text-[#00C57A] hover:underline">Full analytics →</a>
-          </div>
-          <div className="grid grid-cols-4 gap-4 mb-4">
-            {[
-              { label: 'Customers engaged', v: analytics.kpis.customersEngaged.value, t: analytics.kpis.customersEngaged.changePct },
-              { label: 'Appointments',      v: analytics.kpis.appointments.value,     t: analytics.kpis.appointments.changePct },
-              { label: 'Revenue collected', v: rupee(analytics.kpis.revenueCollected.value), t: analytics.kpis.revenueCollected.changePct },
-              { label: 'New customers',     v: analytics.kpis.newCustomers.value,     t: analytics.kpis.newCustomers.changePct },
-            ].map((m, i) => (
-              <div key={i} className="bg-[#141618] rounded-xl p-3">
-                <p className="text-xs text-[#5A6370] mb-1">{m.label}</p>
-                <div className="flex items-center gap-2">
-                  <span className="text-lg font-bold text-[#E8EAED] font-[Syne]">{m.v}</span>
-                  {typeof m.t === 'number' && m.t !== 0 && (
-                    <span className={`text-xs font-medium ${m.t > 0 ? 'text-[#00C57A]' : 'text-[#FF5A5A]'}`}>{m.t > 0 ? '↑' : '↓'}{Math.abs(m.t)}%</span>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-          <EngagementLine data={analytics.charts.engagementOverTime} height={120} />
-        </Card>
-      )}
-
       {/* AI activity bar */}
       <Card className="p-4 mb-6 flex items-center gap-4 bg-gradient-to-r from-[rgba(0,197,122,0.06)] to-transparent border-[rgba(0,197,122,0.15)]">
         <div className="w-9 h-9 rounded-xl bg-[rgba(0,197,122,0.12)] flex items-center justify-center flex-shrink-0">
@@ -162,7 +130,8 @@ export default function DashboardPage() {
             <EmptyState icon={Calendar} title="No appointments today" desc="BizBot will book them automatically as enquiries come in" />
           ) : (
             <div className="space-y-2">
-              {appts.slice(0, 6).map((a: any) => (
+              {/* Defensive sort — earliest first, so the owner sees what's coming up next. */}
+              {[...appts].sort((a, b) => new Date(a.appointment_time).getTime() - new Date(b.appointment_time).getTime()).slice(0, 6).map((a: any) => (
                 <div key={a.id} className="flex items-center gap-3 p-3 bg-[#141618] rounded-xl hover:bg-[#1A1D20] transition-all">
                   <Avatar name={a.customers?.name} phone={a.customers?.phone} size="sm" />
                   <div className="flex-1 min-w-0">
@@ -209,6 +178,39 @@ export default function DashboardPage() {
           )}
         </Card>
       </div>
+
+      {/* 30-day analytics summary — moved BELOW the schedule/chats block so the
+          owner sees today's actionable list first, insights second. */}
+      {analytics?.hasData && (
+        <Card className="p-5 mt-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <BarChart3 size={15} className="text-[#00C57A]" />
+              <h2 className="text-sm font-semibold text-[#E8EAED]">Last 30 days</h2>
+            </div>
+            <a href="/dashboard/analytics" className="text-xs text-[#00C57A] hover:underline">Full analytics →</a>
+          </div>
+          <div className="grid grid-cols-4 gap-4 mb-4">
+            {[
+              { label: 'Customers engaged', v: analytics.kpis.customersEngaged.value, t: analytics.kpis.customersEngaged.changePct },
+              { label: 'Appointments',      v: analytics.kpis.appointments.value,     t: analytics.kpis.appointments.changePct },
+              { label: 'Revenue collected', v: rupee(analytics.kpis.revenueCollected.value), t: analytics.kpis.revenueCollected.changePct },
+              { label: 'New customers',     v: analytics.kpis.newCustomers.value,     t: analytics.kpis.newCustomers.changePct },
+            ].map((m, i) => (
+              <div key={i} className="bg-[#141618] rounded-xl p-3">
+                <p className="text-xs text-[#5A6370] mb-1">{m.label}</p>
+                <div className="flex items-center gap-2">
+                  <span className="text-lg font-bold text-[#E8EAED] font-[Syne]">{m.v}</span>
+                  {typeof m.t === 'number' && m.t !== 0 && (
+                    <span className={`text-xs font-medium ${m.t > 0 ? 'text-[#00C57A]' : 'text-[#FF5A5A]'}`}>{m.t > 0 ? '↑' : '↓'}{Math.abs(m.t)}%</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+          <EngagementLine data={analytics.charts.engagementOverTime} height={120} />
+        </Card>
+      )}
     </div>
   )
 }

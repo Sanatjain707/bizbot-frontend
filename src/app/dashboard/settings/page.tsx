@@ -4,6 +4,7 @@ import { api } from '@/lib/api'
 import { Card, Button, Input, Textarea, Select, Badge, showToast, Divider } from '@/components/ui'
 import ServicesManager from '@/components/dashboard/ServicesManager'
 import HoursLocation from '@/components/dashboard/HoursLocation'
+import WhatsAppProfile from '@/components/dashboard/WhatsAppProfile'
 import { Save, Bot, Clock, CreditCard, Phone, Building2, Sparkles } from 'lucide-react'
 
 export default function SettingsPage() {
@@ -44,12 +45,20 @@ export default function SettingsPage() {
 
   async function save() {
     setSaving(true)
-    const { error } = await api.updateBusiness(biz)
+    // Strip client-only derived fields the layout injects (planActive, etc.)
+    // before POSTing — the backend patch handler rejects unknown columns.
+    // Also coerce numeric inputs from strings (payment_reminder_days is bound
+    // to <input type="number">, which still returns a string).
+    const { planActive, id, created_at, plan_expires_at, razorpay_sub_id, ...payload } = biz as any
+    if (payload.payment_reminder_days != null && payload.payment_reminder_days !== '') {
+      const n = Number(payload.payment_reminder_days)
+      payload.payment_reminder_days = Number.isFinite(n) && n > 0 ? Math.floor(n) : undefined
+    }
+    const { error } = await api.updateBusiness(payload)
     showToast(error ? 'Failed to save' : 'Settings saved', error ? 'error' : 'success')
     setSaving(false)
     if (!error) {
-      // Tell the layout/sidebar to re-fetch so the new name & details show immediately
-      if (typeof window !== 'undefined') window.dispatchEvent(new Event('biz-updated'))
+      window.dispatchEvent(new Event('biz-updated'))
     }
   }
 
@@ -109,6 +118,9 @@ export default function SettingsPage() {
         </div>
         <Input label="WhatsApp Phone Number ID" value={biz.whatsapp_phone_id || ''} onChange={(e: any) => set('whatsapp_phone_id', e.target.value)} placeholder="e.g. 123456789012345" hint="From Meta → WhatsApp → API Setup. Leave blank if you want us to set it up." />
       </Card>
+
+      {/* Live WhatsApp profile (name status, logo, about) pulled from Meta */}
+      <div className="mt-4"><WhatsAppProfile /></div>
     </div>
   )
 }

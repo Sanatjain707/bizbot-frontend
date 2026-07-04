@@ -3,6 +3,7 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { api } from '@/lib/api'
 import { Avatar, Badge, EmptyState, Skeleton, showToast, Input, Toggle } from '@/components/ui'
 import { MessageSquare, Bot, User, Send, Search, Bell, BellOff } from 'lucide-react'
+import { formatISTDateTime } from '@/lib/dateTime'
 
 export default function ConversationsPage() {
   const [convos,   setConvos]   = useState<any[]>([])
@@ -16,12 +17,14 @@ export default function ConversationsPage() {
   const [aiEnabled,setAiEnabled]= useState(true)
   const [notifsOn, setNotifsOn] = useState(false)
 
-  const bottomRef   = useRef<HTMLDivElement>(null)
-  const selectedRef = useRef<any>(null)
-  const msgCountRef = useRef(0)
+  const bottomRef      = useRef<HTMLDivElement>(null)
+  const selectedRef    = useRef<any>(null)
+  const msgIdsRef      = useRef<Set<string>>(new Set())
   const totalUnreadRef = useRef(0)
+  const notifsOnRef    = useRef(false)
   selectedRef.current = selected
-  msgCountRef.current = messages.length
+  notifsOnRef.current = notifsOn
+  msgIdsRef.current = new Set(messages.map(m => m.id))
 
   function scrollToBottom(smooth = true) {
     setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' }), 50)
@@ -36,7 +39,7 @@ export default function ConversationsPage() {
   }
 
   function notify(title: string, body: string) {
-    if (notifsOn && 'Notification' in window && Notification.permission === 'granted') {
+    if (notifsOnRef.current && 'Notification' in window && Notification.permission === 'granted') {
       new Notification(title, { body, icon: '/favicon.ico' })
     }
   }
@@ -53,6 +56,8 @@ export default function ConversationsPage() {
     setLoadMsgs(false)
   }
 
+  // Refresh doesn't depend on notifsOn (we read it from a ref) so the polling
+  // interval isn't torn down + rebuilt every time the user toggles alerts.
   const refresh = useCallback(async () => {
     const { data } = await api.getConversations()
     if (data) {
@@ -64,20 +69,52 @@ export default function ConversationsPage() {
       }
       totalUnreadRef.current = totalUnread
     }
+    // Capture the selected conversation BEFORE the second await — otherwise
+    // if the user clicks a different chat while getMessages() is in flight,
+    // we'd merge messages from the wrong customer into the current view.
     const cur = selectedRef.current
-    if (cur) {
-      const { data: msgs } = await api.getMessages(cur.id)
-      if (msgs && msgs.length > msgCountRef.current) { setMessages(msgs); scrollToBottom(true) }
+    if (!cur) return
+    const targetId = cur.id
+    const { data: msgs } = await api.getMessages(targetId)
+    if (!msgs) return
+    // If the user switched chats during the fetch, drop the result.
+    if (selectedRef.current?.id !== targetId) return
+    // Compare by message-id set instead of raw length — length alone missed
+    // same-count reorders and locked in optimistic "temp-" bubbles forever
+    // (temp id is never present on the server, so length matched).
+    const seen = msgIdsRef.current
+    const hasNew    = msgs.some((m: any) => !seen.has(m.id))
+    const hasFewer  = msgs.length < seen.size
+    const droppedTemp = Array.from(seen).some((id: any) => typeof id === 'string' && id.startsWith('temp-'))
+    if (hasNew || hasFewer || droppedTemp) {
+      setMessages(msgs)
+      if (hasNew) scrollToBottom(true)
     }
-  }, [notifsOn])
+  }, [])
 
+  // Initial load runs ONCE — never re-triggered by notifsOn toggling.
   useEffect(() => {
+    let cancelled = false
     async function init() {
       const { data } = await api.getConversations()
-      if (data) { setConvos(data); if (data.length) { setSelected(data[0]); setAiEnabled(data[0].ai_enabled !== false); await loadMessages(data[0].id, true) } }
-      setLoading(false)
+      if (cancelled) return
+      if (data) {
+        setConvos(data)
+        if (data.length) {
+          setSelected(data[0])
+          setAiEnabled(data[0].ai_enabled !== false)
+          await loadMessages(data[0].id, true)
+        }
+      }
+      if (!cancelled) setLoading(false)
     }
     init()
+    return () => { cancelled = true }
+  }, [])
+
+  // Polling lives in its own effect so it can restart cleanly without
+  // stampeding init(). Refresh is stable (no deps) so this runs once.
+  useEffect(() => {
     const t = setInterval(refresh, 4000)
     return () => clearInterval(t)
   }, [refresh])
@@ -102,7 +139,7 @@ export default function ConversationsPage() {
     setSending(false)
   }
 
-  const filtered = convos.filter(c => !search || (c.name || '').toLowerCase().includes(search.toLowerCase()) || c.phone.includes(search))
+  const filtered = convos.filter(c => !search || (c.name || '').toLowerCase().includes(search.toLowerCase()) || (c.phone || '').includes(search))
 
   return (
     <div className="animate-up">
@@ -183,7 +220,7 @@ export default function ConversationsPage() {
                           <div className={`flex flex-col ${isBot ? 'items-end' : 'items-start'} max-w-md`}>
                             <p className="text-xs text-[#5A6370] mb-1 px-1">{isBot ? 'BizBot AI' : (selected.name || 'Customer')}</p>
                             <div className={`px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap break-words ${isBot ? 'bg-[#00875A] text-white rounded-2xl rounded-br-sm' : 'bg-[#2A2F35] text-[#E8EAED] rounded-2xl rounded-bl-sm'}`}>{m.content}</div>
-                            <p className="text-xs text-[#5A6370] mt-1 px-1">{new Date(m.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</p>
+                            <p className="text-xs text-[#5A6370] mt-1 px-1">{formatISTDateTime(m.created_at).time}</p>
                           </div>
                         </div>
                       )

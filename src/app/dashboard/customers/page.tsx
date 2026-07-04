@@ -5,8 +5,20 @@ import { Card, Button, Badge, Modal, Input, StatCard, EmptyState, Skeleton, show
 import ImportCustomersModal from '@/components/dashboard/ImportCustomersModal'
 import { Users, Plus, Send, Search, X, Phone, Calendar, Clock, Trash2, Upload } from 'lucide-react'
 
-function daysSince(d: string) { return Math.floor((Date.now() - new Date(d).getTime()) / 86400000) }
-function churn(days: number) { return days >= 21 ? { v: 'red', l: 'At risk' } : days >= 14 ? { v: 'amber', l: 'Inactive' } : { v: 'green', l: 'Active' } }
+// daysSince(null) used to return NaN, which is neither >= 21 nor >= 14, so
+// imported customers who never messaged fell through to "Active" — wrong.
+// Return Infinity so they're treated as maximally stale (imports usually
+// need re-engagement anyway).
+function daysSince(d: string | null | undefined): number {
+  if (!d) return Infinity
+  const parsed = new Date(d).getTime()
+  if (Number.isNaN(parsed)) return Infinity
+  return Math.floor((Date.now() - parsed) / 86400000)
+}
+function churn(days: number) {
+  if (!Number.isFinite(days)) return { v: 'default', l: 'New' }
+  return days >= 21 ? { v: 'red', l: 'At risk' } : days >= 14 ? { v: 'amber', l: 'Inactive' } : { v: 'green', l: 'Active' }
+}
 
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<any[]>([])
@@ -24,7 +36,10 @@ export default function CustomersPage() {
 
   useEffect(() => { load(); const t = setInterval(load, 15000); return () => clearInterval(t) }, [])
   async function load() {
-    const { data } = await api.getCustomers()
+    const { data, error } = await api.getCustomers()
+    // Only surface the error on the first load — subsequent polling failures
+    // stay silent to avoid toast spam every 15s.
+    if (error && loading) showToast(error, 'error')
     if (data) setCustomers(data)
     setLoading(false)
   }
@@ -61,7 +76,7 @@ export default function CustomersPage() {
     setSaving(false)
   }
 
-  let filtered = customers.filter(c => !search || (c.name || '').toLowerCase().includes(search.toLowerCase()) || c.phone.includes(search))
+  let filtered = customers.filter(c => !search || (c.name || '').toLowerCase().includes(search.toLowerCase()) || (c.phone || '').includes(search))
   if (tab === 'active')  filtered = filtered.filter(c => daysSince(c.last_seen) < 14)
   if (tab === 'at_risk') filtered = filtered.filter(c => daysSince(c.last_seen) >= 21)
 
@@ -110,7 +125,7 @@ export default function CustomersPage() {
                 return (
                   <tr key={c.id} onClick={() => setSelected(c)} className="border-b border-[rgba(255,255,255,0.03)] hover:bg-[#141618] transition-all cursor-pointer">
                     <td className="px-4 py-3"><div className="flex items-center gap-2.5"><Avatar name={c.name} phone={c.phone} size="sm" /><div><p className="text-sm font-medium text-[#E8EAED]">{c.name || '—'}</p><p className="text-xs text-[#5A6370] font-mono">{c.phone}</p></div></div></td>
-                    <td className="px-4 py-3"><p className="text-sm text-[#9AA0AB]">{days === 0 ? 'Today' : `${days}d ago`}</p></td>
+                    <td className="px-4 py-3"><p className="text-sm text-[#9AA0AB]">{!Number.isFinite(days) ? 'Never' : days === 0 ? 'Today' : `${days}d ago`}</p></td>
                     <td className="px-4 py-3 text-sm text-[#9AA0AB]">{c.total_visits || 0}</td>
                     <td className="px-4 py-3"><Badge variant={ch.v}>{ch.l}</Badge></td>
                     <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
@@ -144,7 +159,7 @@ export default function CustomersPage() {
                 <p className="text-sm text-[#5A6370] font-mono">{selected.phone}</p>
               </div>
               <div className="space-y-3">
-                <div className="flex items-center justify-between p-3 bg-[#141618] rounded-xl"><span className="text-xs text-[#5A6370] flex items-center gap-2"><Clock size={13} />Last Seen</span><span className="text-sm text-[#E8EAED]">{daysSince(selected.last_seen)}d ago</span></div>
+                <div className="flex items-center justify-between p-3 bg-[#141618] rounded-xl"><span className="text-xs text-[#5A6370] flex items-center gap-2"><Clock size={13} />Last Seen</span><span className="text-sm text-[#E8EAED]">{!Number.isFinite(daysSince(selected.last_seen)) ? 'Never' : `${daysSince(selected.last_seen)}d ago`}</span></div>
                 <div className="flex items-center justify-between p-3 bg-[#141618] rounded-xl"><span className="text-xs text-[#5A6370] flex items-center gap-2"><Calendar size={13} />Total Visits</span><span className="text-sm text-[#E8EAED]">{selected.total_visits || 0}</span></div>
                 <div className="flex items-center justify-between p-3 bg-[#141618] rounded-xl"><span className="text-xs text-[#5A6370]">Status</span><Badge variant={churn(daysSince(selected.last_seen)).v}>{churn(daysSince(selected.last_seen)).l}</Badge></div>
               </div>

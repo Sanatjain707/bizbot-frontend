@@ -20,9 +20,18 @@ export default function LoginPage() {
   const [info, setInfo] = useState('')
 
   // If already fully set up (has a business), skip straight to dashboard.
-  // Otherwise show the login form normally.
+  // Otherwise show the login form normally. Cancel flag stops the redirect
+  // from firing after the user unmounts (e.g. by clicking a link).
   useEffect(() => {
-    destinationForUser().then(dest => { if (dest === '/dashboard') router.replace('/dashboard') })
+    let cancelled = false
+    // Friendly notice when the dashboard signed us out for inactivity.
+    if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('reason') === 'idle') {
+      setInfo("You've been signed out due to inactivity. Please sign in again.")
+    }
+    destinationForUser().then(dest => {
+      if (!cancelled && dest === '/dashboard') router.replace('/dashboard')
+    })
+    return () => { cancelled = true }
   }, [])
 
   async function emailLogin() {

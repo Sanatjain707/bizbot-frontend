@@ -4,6 +4,7 @@ import { api } from '@/lib/api'
 import { Card, Button, Badge, Modal, Input, Select, EmptyState, Skeleton, showToast } from '@/components/ui'
 import LockGate from '@/components/dashboard/LockGate'
 import { Plus, Megaphone, Send, Users, IndianRupee, Eye, MessageSquare, CheckCheck, FileText } from 'lucide-react'
+import { scheduledLocalToUtcISO } from '@/lib/dateTime'
 
 const SEGMENTS = [
   { value: 'all',    label: 'All customers' },
@@ -21,6 +22,8 @@ export default function BroadcastPage() {
   const [sending,   setSending]   = useState<string | null>(null)
   const [audience,  setAudience]  = useState<any>({ count: 0, estCost: 0 })
   const [form, setForm] = useState({ name: '', template_id: '', segment: 'all', segment_value: '', scheduled_at: '' })
+  const [confirmSend, setConfirmSend] = useState<any>(null)
+  const [cancelling, setCancelling] = useState<string | null>(null)
 
   useEffect(() => { load() }, [])
   async function load() {
@@ -30,27 +33,57 @@ export default function BroadcastPage() {
     setLoading(false)
   }
 
-  // Recompute audience whenever segment changes
+  // A blast runs in the background; poll so counters update live while it sends.
+  useEffect(() => {
+    if (!campaigns.some(c => c.status === 'sending')) return
+    const t = setInterval(load, 5000)
+    return () => clearInterval(t)
+  }, [campaigns])
+
+  async function doCancel(id: string) {
+    setCancelling(id)
+    const { error } = await api.cancelCampaign(id)
+    setCancelling(null)
+    showToast(error || 'Campaign cancelled', error ? 'error' : 'success')
+    load()
+  }
+
+  // Recompute audience whenever segment changes. Debounce so typing a service
+  // name doesn't fire one request per keystroke (~6 for "Facial").
+  const approvedTemplates = templates.filter(t => t.status === 'APPROVED')
+
   useEffect(() => {
     if (!modal) return
-    api.getAudience(form.segment, form.segment_value).then(({ data }) => {
-      if (data) setAudience(data)
-    })
-  }, [form.segment, form.segment_value, modal])
-
-  const approvedTemplates = templates.filter(t => t.status === 'APPROVED')
+    const cat = approvedTemplates.find(t => t.id === form.template_id)?.category
+    const timer = setTimeout(() => {
+      let cancelled = false
+      api.getAudience(form.segment, form.segment_value, cat).then(({ data }) => {
+        if (!cancelled && data) setAudience(data)
+      })
+      return () => { cancelled = true }
+    }, 350)
+    return () => clearTimeout(timer)
+  }, [form.segment, form.segment_value, form.template_id, modal])
 
   async function create(thenSend: boolean) {
     if (!form.name.trim()) { showToast('Name your campaign', 'error'); return }
     if (!form.template_id) { showToast('Pick an approved template', 'error'); return }
     setSaving(true)
-    const { data, error } = await api.createCampaign(form)
+    // Anchor the picked schedule to IST regardless of the browser's timezone —
+    // the backend interprets scheduled_at as IST for consistency with all
+    // other business timestamps.
+    const payload = {
+      ...form,
+      scheduled_at: form.scheduled_at ? scheduledLocalToUtcISO(form.scheduled_at) : '',
+    }
+    const { data, error } = await api.createCampaign(payload)
     if (error || !data) { showToast(error || 'Failed', 'error'); setSaving(false); return }
     if (thenSend) {
-      const { error: sErr } = await api.sendCampaign((data as any).id)
-      showToast(sErr ? `Send failed: ${sErr}` : 'Campaign sent! 🚀', sErr ? 'error' : 'success')
+      const { data: sd, error: sErr } = await api.sendCampaign((data as any).id)
+      if (sErr) showToast(`Send failed: ${sErr}`, 'error')
+      else showToast(`Broadcasting to ${(sd as any)?.total ?? ''} customers — sending in the background 🚀`, 'success')
     } else {
-      showToast('Campaign saved as draft', 'success')
+      showToast(form.scheduled_at ? 'Campaign scheduled' : 'Campaign saved as draft', 'success')
     }
     setModal(false)
     setForm({ name: '', template_id: '', segment: 'all', segment_value: '', scheduled_at: '' })
@@ -60,8 +93,9 @@ export default function BroadcastPage() {
 
   async function sendNow(id: string) {
     setSending(id)
-    const { error } = await api.sendCampaign(id)
-    showToast(error ? `Send failed: ${error}` : 'Campaign sent! 🚀', error ? 'error' : 'success')
+    const { data, error } = await api.sendCampaign(id)
+    if (error) showToast(`Send failed: ${error}`, 'error')
+    else showToast(`Broadcasting to ${(data as any)?.total ?? ''} customers — sending in the background 🚀`, 'success')
     setSending(null)
     load()
   }
@@ -104,9 +138,14 @@ export default function BroadcastPage() {
                   </div>
                   <p className="text-xs text-[#5A6370]">{c.templates?.name || 'template'} · {SEGMENTS.find(s => s.value === c.segment)?.label || c.segment} · {c.total} recipients</p>
                 </div>
-                {c.status === 'draft' && (
-                  <Button size="sm" icon={Send} loading={sending === c.id} onClick={() => sendNow(c.id)}>Send Now</Button>
-                )}
+                <div className="flex gap-2">
+                  {c.status === 'draft' && (
+                    <Button size="sm" icon={Send} loading={sending === c.id} onClick={() => setConfirmSend({ type: 'existing', id: c.id, count: c.total, cost: c.est_cost })}>Send Now</Button>
+                  )}
+                  {(c.status === 'draft' || c.status === 'scheduled') && (
+                    <Button size="sm" variant="ghost" loading={cancelling === c.id} onClick={() => doCancel(c.id)}>Cancel</Button>
+                  )}
+                </div>
               </div>
               {/* Analytics funnel */}
               <div className="grid grid-cols-5 gap-2">
@@ -115,7 +154,7 @@ export default function BroadcastPage() {
                   ['Delivered', c.delivered, CheckCheck, '#4D9EFF'],
                   ['Read', c.read, Eye, '#A87EFF'],
                   ['Replied', c.replied, MessageSquare, '#00C57A'],
-                  ['Cost', `₹${c.est_cost}`, IndianRupee, '#FFA040'],
+                  [c.status === 'sent' ? 'Actual cost' : 'Est. cost', `₹${c.status === 'sent' ? (c.actual_cost ?? 0) : c.est_cost}`, IndianRupee, '#FFA040'],
                 ].map(([label, val, Icon, color]: any, i) => (
                   <div key={i} className="bg-[#141618] rounded-xl p-3 text-center">
                     <Icon size={13} style={{ color }} className="mx-auto mb-1" />
@@ -152,16 +191,32 @@ export default function BroadcastPage() {
             <div className="flex-1 bg-[#141618] rounded-xl p-3 text-center">
               <IndianRupee size={14} className="text-[#FFA040] mx-auto mb-1" />
               <div className="text-lg font-bold text-[#E8EAED]">₹{audience.estCost}</div>
-              <div className="text-xs text-[#5A6370]">est. cost</div>
+              <div className="text-xs text-[#5A6370]">est. cost{audience.category ? ` · ${audience.category}` : ''}</div>
             </div>
           </div>
         </div>
         <div className="flex gap-2 mt-5">
-          <Button onClick={() => create(true)} loading={saving} icon={Send}>Send Now</Button>
-          <Button variant="secondary" onClick={() => create(false)} loading={saving}>Save Draft</Button>
+          {!form.scheduled_at && (
+            <Button onClick={() => setConfirmSend({ type: 'new', count: audience.count, cost: audience.estCost })} loading={saving} icon={Send}>Send Now</Button>
+          )}
+          <Button variant="secondary" onClick={() => create(false)} loading={saving}>{form.scheduled_at ? 'Schedule' : 'Save Draft'}</Button>
           <Button variant="ghost" onClick={() => setModal(false)}>Cancel</Button>
         </div>
-        <p className="text-xs text-[#5A6370] mt-3">Customers who replied "STOP" are automatically excluded. Meta charges per marketing message.</p>
+        <p className="text-xs text-[#5A6370] mt-3">Customers who replied &quot;STOP&quot; are automatically excluded. Meta charges per marketing message.</p>
+      </Modal>
+
+      {/* Cost-confirmation gate */}
+      <Modal open={!!confirmSend} onClose={() => setConfirmSend(null)} title="Confirm broadcast" size="sm">
+        <p className="text-sm text-[#9AA0AB] mb-1">You&apos;re about to message <strong className="text-[#E8EAED]">{confirmSend?.count} customer{confirmSend?.count === 1 ? '' : 's'}</strong>.</p>
+        <p className="text-sm text-[#9AA0AB] mb-4">Estimated cost: <strong className="text-[#FFA040]">₹{confirmSend?.cost}</strong> — Meta charges per marketing message.</p>
+        <div className="flex gap-2 justify-end">
+          <Button variant="ghost" onClick={() => setConfirmSend(null)}>Cancel</Button>
+          <Button icon={Send} loading={saving || sending !== null} onClick={async () => {
+            const cs = confirmSend; setConfirmSend(null)
+            if (cs.type === 'new') await create(true)
+            else await sendNow(cs.id)
+          }}>Send to {confirmSend?.count}</Button>
+        </div>
       </Modal>
     </div>
   )

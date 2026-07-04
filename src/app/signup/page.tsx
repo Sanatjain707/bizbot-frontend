@@ -14,7 +14,11 @@ export default function SignupPage() {
 
   // Only skip the form if they're already fully set up (have a business).
   useEffect(() => {
-    destinationForUser().then(dest => { if (dest === '/dashboard') router.replace('/dashboard') })
+    let cancelled = false
+    destinationForUser().then(dest => {
+      if (!cancelled && dest === '/dashboard') router.replace('/dashboard')
+    })
+    return () => { cancelled = true }
   }, [])
 
   async function signup() {
@@ -98,7 +102,7 @@ export default function SignupPage() {
               <button onClick={signup} disabled={loading} style={{ width: '100%', padding: '13px', borderRadius: 12, border: 'none', background: '#0A8754', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', marginTop: 20, opacity: loading ? 0.7 : 1 }}>
                 {loading ? 'Creating account…' : 'Create account & start trial'}
               </button>
-              <p style={{ fontSize: 12, color: '#8A7E72', textAlign: 'center', marginTop: 14 }}>By signing up you agree to our Terms & Privacy Policy</p>
+              <p style={{ fontSize: 12, color: '#8A7E72', textAlign: 'center', marginTop: 14 }}>By signing up you agree to our <a href="/terms" style={{ color: '#0A8754' }}>Terms</a> &amp; <a href="/privacy" style={{ color: '#0A8754' }}>Privacy Policy</a></p>
             </>
           )}
         </div>

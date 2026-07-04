@@ -246,24 +246,35 @@ function WhoFor() {
 }
 
 function Pricing() {
+  // Same product, three commitment lengths — matches the dashboard's
+  // /api/billing/plans response so what customers see here is what they
+  // pay after signup.
   const plans = [
-    ['Starter','999',['200 AI conversations/month','Appointment booking','Automated reminders','1 WhatsApp number'],false],
-    ['Growth','1,999',['1,000 conversations/month','Everything in Starter','Payment follow-ups','Win-back campaigns'],true],
-    ['Pro','3,999',['Unlimited conversations','Everything in Growth','Multi-location','Priority support'],false],
+    ['Quarterly',    '2,997', 999, '3 months',  0,  ['Unlimited AI conversations','Appointment booking + reminders','Payment follow-ups','Broadcasts + re-engagement','Full dashboard + analytics','Hindi & English support'], false],
+    ['Half-Yearly',  '5,394', 899, '6 months',  10, ['Everything in Quarterly','Save 10% vs quarterly'], true],
+    ['Annual',       '9,588', 799, '12 months', 20, ['Everything in Half-Yearly','Save 20% vs quarterly','Priority support'], false],
   ]
   return (
     <section id="pricing" className="lp" style={{ padding:'70px 24px', maxWidth:1000, margin:'0 auto' }}>
       <h2 className="display" style={{ fontSize:38, fontWeight:600, textAlign:'center', marginBottom:10 }}>Simple, honest pricing</h2>
       <p style={{ textAlign:'center', fontSize:16, color:'#5C5248', marginBottom:14 }}>Start free for 30 days. No credit card. Cancel anytime.</p>
       <div style={{ textAlign:'center', marginBottom:40 }}>
-        <span style={{ background:'#FFF1CC', color:'#9A6B00', padding:'6px 15px', borderRadius:20, fontSize:13.5, fontWeight:700 }}>🎁 First 10 businesses: ₹999 locked forever</span>
+        <span style={{ background:'#FFF1CC', color:'#9A6B00', padding:'6px 15px', borderRadius:20, fontSize:13.5, fontWeight:700 }}>Longer commitment · lower monthly rate</span>
       </div>
       <div className="price-grid" style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:20, alignItems:'start' }}>
-        {plans.map(([name,price,feats,popular]:any,i)=>(
+        {plans.map(([name,price,perMonth,duration,savings,feats,popular]:any,i)=>(
           <div key={i} style={{ background: popular?'#1A1410':'#fff', color: popular?'#fff':'#1A1410', borderRadius:20, padding:'30px 26px', border: popular?'none':'1px solid rgba(0,0,0,0.07)', boxShadow: popular?'0 16px 40px rgba(0,0,0,0.18)':'0 4px 16px rgba(0,0,0,0.04)', position:'relative' }}>
             {popular && <div style={{ position:'absolute', top:-12, left:'50%', transform:'translateX(-50%)', background:'#FFD96B', color:'#1A1410', padding:'4px 14px', borderRadius:14, fontSize:12, fontWeight:700 }}>MOST POPULAR</div>}
             <h3 style={{ fontSize:18, fontWeight:700, marginBottom:6 }}>{name}</h3>
-            <div style={{ marginBottom:20 }}><span className="display" style={{ fontSize:40, fontWeight:700 }}>₹{price}</span><span style={{ fontSize:14, opacity:0.6 }}>/month</span></div>
+            <div style={{ marginBottom:6 }}>
+              <span className="display" style={{ fontSize:40, fontWeight:700 }}>₹{price}</span>
+              <span style={{ fontSize:14, opacity:0.6 }}> / {duration}</span>
+            </div>
+            <div style={{ fontSize:13, opacity:0.75, marginBottom:6 }}>≈ ₹{perMonth}/month effective</div>
+            {savings > 0 && (
+              <div style={{ display:'inline-block', background: popular?'rgba(255,217,107,0.18)':'rgba(10,135,84,0.12)', color: popular?'#FFD96B':'#0A8754', padding:'3px 10px', borderRadius:12, fontSize:12, fontWeight:700, marginBottom:16 }}>Save {savings}%</div>
+            )}
+            {savings === 0 && <div style={{ marginBottom:16 }} />}
             <Link href="/signup" style={{ display:'block', textAlign:'center', padding:'12px', borderRadius:11, fontWeight:700, fontSize:15, marginBottom:22, background:'#0A8754', color:'#fff' }}>Start free trial</Link>
             <div style={{ display:'flex', flexDirection:'column', gap:11 }}>
               {feats.map((f:string,j:number)=>(

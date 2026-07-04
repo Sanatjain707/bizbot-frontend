@@ -31,16 +31,34 @@ export default function PaymentsPage() {
   }
 
   async function markPaid(id: string) {
+    // Snapshot the row so we can roll back if the backend rejects. Previously
+    // this optimistically filtered AND then called load(), which stampeded
+    // the paid row back into pending if the read raced ahead of the write.
+    const removed = pending.find(p => p.id === id)
+    setPending(prev => prev.filter(p => p.id !== id))
     const { error } = await api.markPaymentPaid(id)
-    if (!error) { setPending(prev => prev.filter(p => p.id !== id)); showToast('Payment marked as received', 'success'); load() }
+    if (error) {
+      if (removed) setPending(prev => [removed, ...prev])
+      showToast('Failed to mark paid', 'error')
+      return
+    }
+    showToast('Payment marked as received', 'success')
+    // No load() — the optimistic update is already correct.
   }
 
   async function create() {
     if (!form.customer_name || !form.amount) { showToast('Fill required fields', 'error'); return }
+    // Guard against NaN and non-positive amounts. Number('abc') → NaN, which
+    // serialises to null in JSON and silently corrupts the DB.
+    const amount = Number(form.amount)
+    if (!Number.isFinite(amount) || amount <= 0) {
+      showToast('Enter a valid amount greater than 0', 'error')
+      return
+    }
     setSaving(true)
     const { error } = await api.createPayment({
       customer_name: form.customer_name, customer_phone: form.customer_phone,
-      amount: Number(form.amount), description: form.description,
+      amount, description: form.description,
       due_date: form.due_date ? new Date(form.due_date).toISOString() : new Date().toISOString(),
     })
     if (error) showToast('Failed to create', 'error')
